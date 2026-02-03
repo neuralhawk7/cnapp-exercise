@@ -1,0 +1,6 @@
+
+# local artifacts
+terraform/test
+terraform/test2
+terraform/path
+.DS_Store
