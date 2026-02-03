@@ -1,0 +1,62 @@
+#!/bin/bash
+set -euxo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update -y
+apt-get install -y curl gnupg ca-certificates cron awscli
+
+########################################
+# Install MongoDB 4.2 on Debian 10 (Buster) - outdated
+########################################
+curl -fsSL https://pgp.mongodb.com/server-4.2.asc | apt-key add -
+echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/4.2 main" > /etc/apt/sources.list.d/mongodb-org-4.2.list
+apt-get update -y
+apt-get install -y mongodb-org
+
+systemctl enable mongod
+systemctl start mongod
+
+########################################
+# Create admin user BEFORE enabling auth
+########################################
+# Some Debian images may not have mongosh by default with older versions; mongo shell is usually present.
+mongo --eval "db.getSiblingDB('admin').createUser({user: '${mongo_admin_user}', pwd: '${mongo_admin_pass}', roles:[{role:'root',db:'admin'}]})" || true
+
+########################################
+# Enable authentication
+########################################
+# Ensure these lines exist in /etc/mongod.conf with correct indentation
+grep -q '^security:' /etc/mongod.conf || echo 'security:' >> /etc/mongod.conf
+grep -q 'authorization:' /etc/mongod.conf || echo '  authorization: enabled' >> /etc/mongod.conf
+
+systemctl restart mongod
+
+########################################
+# Daily backups to S3 (public readable + listable bucket)
+########################################
+cat >/usr/local/bin/mongo_backup.sh <<'EOF'
+#!/bin/bash
+set -euxo pipefail
+
+TS=$(date -u +%Y%m%dT%H%M%SZ)
+OUT="/tmp/mongodump-$TS.archive.gz"
+
+mongodump \
+  --archive="$OUT" \
+  --gzip \
+  --username "${mongo_admin_user}" \
+  --password "${mongo_admin_pass}" \
+  --authenticationDatabase admin
+
+# Upload (bucket policy already allows public reads, but we also set ACL to be safe)
+aws s3 cp "$OUT" "s3://${backup_bucket}/backups/mongodump-$TS.archive.gz" --acl public-read
+
+# Cleanup
+rm -f "$OUT"
+EOF
+
+chmod +x /usr/local/bin/mongo_backup.sh
+
+# Run daily at 01:15 UTC
+echo "15 1 * * * root /usr/local/bin/mongo_backup.sh" > /etc/cron.d/mongo_backup
+systemctl restart cron || true

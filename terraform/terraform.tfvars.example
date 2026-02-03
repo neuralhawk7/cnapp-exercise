@@ -1,0 +1,13 @@
+# Example variables for a fresh Wiz sandbox redeploy.
+# Copy to terraform/terraform.tfvars and fill in real values (do not commit terraform.tfvars).
+
+region        = "us-west-1"
+name_prefix   = "cnapp-demo"
+cluster_name  = "cnapp-demo-eks"
+
+# Exercise-friendly defaults (adjust as needed)
+ssh_ingress_cidr = "0.0.0.0/0"
+
+# If your code expects these, keep them here as examples:
+# mongo_instance_type = "t3.micro"
+# node_instance_type  = "t3.medium"
