@@ -28,7 +28,7 @@ This repository includes non-blocking security scans that run on PRs and pushes.
 
 **Security note:** You posted a PAT in chat earlier — please revoke that token immediately and create a new one; never paste tokens into chat or commit them to source control.
 
-**Behavior note:** The workflow will attempt GHCR and ECR pushes only when a `Dockerfile` is present. If required secrets are missing the push steps will be skipped (non-blocking). This provides mirrored images in GHCR and ECR when you add secrets and enables both GitHub-native scans/Dependabot and AWS-native scans in ECR.
+**Behavior note:** The workflow will attempt GHCR and ECR pushes only when a `Dockerfile` is present. If required secrets are missing the push steps will be skipped (non-blocking). When pushes occur the workflow will push three tags for each registry: `sha` (full commit SHA), `sha-short` (first 7 characters), and `latest`. For ECR, the workflow attempts to create the repository automatically if it doesn't already exist (non‑blocking). This provides mirrored images in GHCR and ECR when you add secrets and enables both GitHub-native scans/Dependabot and AWS-native scans in ECR.
 
 ## Run locally
 

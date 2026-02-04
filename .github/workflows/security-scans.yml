@@ -53,16 +53,23 @@ jobs:
           GHCR_PAT: ${{ secrets.GHCR_PAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_TAG: ${{ github.repository }}:${{ github.sha }}
-          GHCR_TAG: ghcr.io/${{ github.repository }}:${{ github.sha }}
         run: |
           echo "Attempting GHCR push (will skip if no credentials)"
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          GHCR_TAG_MAIN=ghcr.io/$GITHUB_REPOSITORY:$GITHUB_SHA
+          GHCR_TAG_SHORT=ghcr.io/$GITHUB_REPOSITORY:$SHORT_SHA
+          GHCR_TAG_LATEST=ghcr.io/$GITHUB_REPOSITORY:latest
           if [ -n "$GHCR_PAT" ]; then
             echo "$GHCR_PAT" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || true
           else
             echo "No GHCR_PAT found; trying GITHUB_TOKEN (may not have write permission)" && echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || true
           fi
-          docker tag "$IMAGE_TAG" "$GHCR_TAG" || true
-          docker push "$GHCR_TAG" || true
+          docker tag "$IMAGE_TAG" "$GHCR_TAG_MAIN" || true
+          docker tag "$IMAGE_TAG" "$GHCR_TAG_SHORT" || true
+          docker tag "$IMAGE_TAG" "$GHCR_TAG_LATEST" || true
+          docker push "$GHCR_TAG_MAIN" || true
+          docker push "$GHCR_TAG_SHORT" || true
+          docker push "$GHCR_TAG_LATEST" || true
 
       - name: Push image to ECR (optional, non-blocking)
         if: steps.dockerfile.outputs.found == 'true'
@@ -81,10 +88,21 @@ jobs:
           # Configure AWS CLI
           pip install awscli --upgrade --user || true
           export PATH="$HOME/.local/bin:$PATH"
+          # Create ECR repository if it doesn't exist (non-blocking)
+          aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION" >/dev/null 2>&1 || (
+            echo "ECR repository not found — creating $ECR_REPOSITORY" && aws ecr create-repository --repository-name "$ECR_REPOSITORY" --region "$AWS_REGION" || true
+          )
           aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY" || true
-          ECR_TAG="$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
-          docker tag "$IMAGE_TAG" "$ECR_TAG" || true
-          docker push "$ECR_TAG" || true
+          SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)
+          ECR_TAG_FULL="$ECR_REGISTRY/$ECR_REPOSITORY:$GITHUB_SHA"
+          ECR_TAG_SHORT="$ECR_REGISTRY/$ECR_REPOSITORY:$SHORT_SHA"
+          ECR_TAG_LATEST="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          docker tag "$IMAGE_TAG" "$ECR_TAG_FULL" || true
+          docker tag "$IMAGE_TAG" "$ECR_TAG_SHORT" || true
+          docker tag "$IMAGE_TAG" "$ECR_TAG_LATEST" || true
+          docker push "$ECR_TAG_FULL" || true
+          docker push "$ECR_TAG_SHORT" || true
+          docker push "$ECR_TAG_LATEST" || true
 
       - name: Trivy image scan (SARIF) (skipped if no Dockerfile)
         if: steps.dockerfile.outputs.found == 'true'
