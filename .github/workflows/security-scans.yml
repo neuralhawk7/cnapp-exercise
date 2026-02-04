@@ -47,6 +47,45 @@ jobs:
           tags: ${{ github.repository }}:${{ github.sha }}
           file: app/Dockerfile
 
+      - name: Push image to GHCR (optional, non-blocking)
+        if: steps.dockerfile.outputs.found == 'true'
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE_TAG: ${{ github.repository }}:${{ github.sha }}
+          GHCR_TAG: ghcr.io/${{ github.repository }}:${{ github.sha }}
+        run: |
+          echo "Attempting GHCR push (will skip if no credentials)"
+          if [ -n "$GHCR_PAT" ]; then
+            echo "$GHCR_PAT" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || true
+          else
+            echo "No GHCR_PAT found; trying GITHUB_TOKEN (may not have write permission)" && echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin || true
+          fi
+          docker tag "$IMAGE_TAG" "$GHCR_TAG" || true
+          docker push "$GHCR_TAG" || true
+
+      - name: Push image to ECR (optional, non-blocking)
+        if: steps.dockerfile.outputs.found == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.repository }}:${{ github.sha }}
+        run: |
+          echo "Attempting ECR push (will skip if AWS creds / ECR info missing)"
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$ECR_REGISTRY" ] || [ -z "$ECR_REPOSITORY" ]; then
+            echo "Missing ECR vars; skipping ECR push" && exit 0
+          fi
+          # Configure AWS CLI
+          pip install awscli --upgrade --user || true
+          export PATH="$HOME/.local/bin:$PATH"
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY" || true
+          ECR_TAG="$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+          docker tag "$IMAGE_TAG" "$ECR_TAG" || true
+          docker push "$ECR_TAG" || true
+
       - name: Trivy image scan (SARIF) (skipped if no Dockerfile)
         if: steps.dockerfile.outputs.found == 'true'
         uses: aquasecurity/trivy-action@v0.9.0

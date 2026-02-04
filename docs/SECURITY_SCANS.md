@@ -17,7 +17,18 @@ This repository includes non-blocking security scans that run on PRs and pushes.
   - To create a Fine-grained PAT: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Grant only the minimum required repo/org permissions and set an expiration.
   - Add the PAT in the repo: Settings → Secrets and variables → Actions → New repository secret → `LEGITIFY_TOKEN`.
 
-**Security note:** You posted a PAT in chat earlier — please revoke that token immediately and create a new one; never paste PATs into chat or commit them to source control.
+- **GHCR_PAT** (optional): Personal Access Token with `packages:write` (or allow the `GITHUB_TOKEN` to have `packages: write` permissions for the workflow) to push images to GitHub Container Registry (GHCR). Store as `GHCR_PAT` in repository secrets to enable GHCR pushes.
+
+- **AWS / ECR secrets** (optional): To push images to Amazon ECR, add the following repository secrets:
+  - `AWS_ACCESS_KEY_ID`
+  - `AWS_SECRET_ACCESS_KEY`
+  - `AWS_REGION`
+  - `ECR_REGISTRY` (e.g., `123456789012.dkr.ecr.us-east-1.amazonaws.com`)
+  - `ECR_REPOSITORY` (e.g., `cnapp-exercise`)
+
+**Security note:** You posted a PAT in chat earlier — please revoke that token immediately and create a new one; never paste tokens into chat or commit them to source control.
+
+**Behavior note:** The workflow will attempt GHCR and ECR pushes only when a `Dockerfile` is present. If required secrets are missing the push steps will be skipped (non-blocking). This provides mirrored images in GHCR and ECR when you add secrets and enables both GitHub-native scans/Dependabot and AWS-native scans in ECR.
 
 ## Run locally
 
