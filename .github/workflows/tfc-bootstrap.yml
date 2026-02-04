@@ -1,0 +1,110 @@
+name: Terraform Cloud — bootstrap workspace
+
+on:
+  workflow_dispatch:
+    inputs:
+      org:
+        description: "Terraform Cloud organization (overrides secret TFC_ORG)"
+        required: false
+      workspace:
+        description: "Terraform Cloud workspace name (overrides secret TFC_WORKSPACE)"
+        required: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    env:
+      TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
+      TFC_ORG: ${{ secrets.TFC_ORG }}
+      TFC_WORKSPACE: ${{ secrets.TFC_WORKSPACE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      MONGO_ADMIN_PASS: ${{ secrets.MONGO_ADMIN_PASS }}
+      SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+
+    steps:
+      - name: Verify inputs and secrets
+        run: |
+          ORG="${{ github.event.inputs.org || env.TFC_ORG }}"
+          WS="${{ github.event.inputs.workspace || env.TFC_WORKSPACE }}"
+          if [ -z "$ORG" ] || [ -z "$WS" ]; then
+            echo "Missing organization or workspace name. Set repo secrets TFC_ORG/TFC_WORKSPACE or pass via workflow_dispatch inputs." >&2
+            exit 1
+          fi
+          if [ -z "$TFC_TOKEN" ]; then
+            echo "Missing TFC_TOKEN secret. Add it in repo settings." >&2
+            exit 1
+          fi
+          echo "Bootstrapping Terraform Cloud workspace: $ORG / $WS"
+
+      - name: Get workspace id (if exists)
+        id: get_ws
+        run: |
+          ORG="${{ github.event.inputs.org || env.TFC_ORG }}"
+          WS="${{ github.event.inputs.workspace || env.TFC_WORKSPACE }}"
+          resp=$(curl -sS -H "Authorization: Bearer ${TFC_TOKEN}" -H "Content-Type: application/vnd.api+json" "https://app.terraform.io/api/v2/organizations/$ORG/workspaces/$WS")
+          ws_id=$(echo "$resp" | jq -r '.data.id // empty')
+          if [ -n "$ws_id" ]; then
+            echo "workspace_id=$ws_id" >> $GITHUB_OUTPUT
+            echo "workspace_exists=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "workspace_exists=false" >> $GITHUB_OUTPUT
+
+      - name: Create workspace (if missing)
+        if: steps.get_ws.outputs.workspace_exists == 'false'
+        id: create_ws
+        run: |
+          ORG="${{ github.event.inputs.org || env.TFC_ORG }}"
+          WS="${{ github.event.inputs.workspace || env.TFC_WORKSPACE }}"
+          payload=$(jq -n --arg name "$WS" '{data:{type:"workspaces", attributes:{name:$name}}}')
+          resp=$(curl -sS -X POST -H "Authorization: Bearer ${TFC_TOKEN}" -H "Content-Type: application/vnd.api+json" -d "$payload" "https://app.terraform.io/api/v2/organizations/$ORG/workspaces")
+          echo "$resp" | jq '.'
+          ws_id=$(echo "$resp" | jq -r '.data.id')
+          if [ -z "$ws_id" ] || [ "$ws_id" = "null" ]; then
+            echo "Failed to create workspace: $resp" >&2
+            exit 1
+          fi
+          echo "workspace_id=$ws_id" >> $GITHUB_OUTPUT
+
+      - name: Resolve workspace id
+        if: steps.get_ws.outputs.workspace_exists == 'true'
+        id: existing_ws
+        run: |
+          ORG="${{ github.event.inputs.org || env.TFC_ORG }}"
+          WS="${{ github.event.inputs.workspace || env.TFC_WORKSPACE }}"
+          resp=$(curl -sS -H "Authorization: Bearer ${TFC_TOKEN}" -H "Content-Type: application/vnd.api+json" "https://app.terraform.io/api/v2/organizations/$ORG/workspaces/$WS")
+          ws_id=$(echo "$resp" | jq -r '.data.id')
+          echo "workspace_id=$ws_id" >> $GITHUB_OUTPUT
+
+      - name: Set workspace variables (AWS, terraform vars)
+        run: |
+          ws_id=${{ steps.create_ws.outputs.workspace_id || steps.existing_ws.outputs.workspace_id }}
+          echo "workspace_id=$ws_id"
+
+          set_var() {
+            key=$1
+            val=$2
+            category=$3
+            sensitive=$4
+            if [ -z "$val" ]; then
+              echo "Skipping $key because value is empty"
+              return
+            fi
+            payload=$(jq -n --arg key "$key" --arg value "$val" --arg category "$category" --argjson sensitive $sensitive '{data:{type:"vars", attributes:{key:$key, value:$value, category:$category, hcl:false, sensitive:$sensitive}}}')
+            resp=$(curl -sS -X POST -H "Authorization: Bearer ${TFC_TOKEN}" -H "Content-Type: application/vnd.api+json" -d "$payload" "https://app.terraform.io/api/v2/workspaces/$ws_id/vars")
+            echo "$resp" | jq -r '.'
+          }
+
+          set_var "AWS_ACCESS_KEY_ID" "${AWS_ACCESS_KEY_ID}" "env" true
+          set_var "AWS_SECRET_ACCESS_KEY" "${AWS_SECRET_ACCESS_KEY}" "env" true
+          set_var "AWS_REGION" "${AWS_REGION}" "env" false
+          set_var "mongo_admin_pass" "${MONGO_ADMIN_PASS}" "terraform" true
+          set_var "ssh_public_key" "${SSH_PUBLIC_KEY}" "terraform" true
+
+      - name: Done
+        run: |
+          ORG="${{ github.event.inputs.org || env.TFC_ORG }}"
+          WS="${{ github.event.inputs.workspace || env.TFC_WORKSPACE }}"
+          echo "Bootstrap complete for $ORG / $WS. Inspect workspace in Terraform Cloud for runs/variables."
