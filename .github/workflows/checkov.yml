@@ -1,0 +1,43 @@
+name: Checkov IaC Scan (informational)
+
+on:
+  pull_request:
+  push:
+    branches: [ main, 'feature/**', '**' ]
+
+jobs:
+  checkov:
+    name: Checkov scan (informational)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Checkov
+        run: pip install checkov
+
+      - name: Run Checkov against Terraform (non-blocking)
+        id: run_checkov
+        run: |
+          checkov -d terraform --output-file checkov.sarif --output-format sarif || true
+
+      - name: Upload Checkov SARIF as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-sarif
+          path: checkov.sarif
+
+      - name: Upload SARIF to GitHub Code Scanning (optional)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: checkov.sarif
+
+    # Keep the job non-blocking by allowing it to succeed even when Checkov finds problems
+    continue-on-error: true
