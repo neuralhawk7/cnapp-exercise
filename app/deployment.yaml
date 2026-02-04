@@ -1,0 +1,49 @@
+# Kubernetes Deployment manifest for the express-hello application
+# This deployment uses the container image specified by the user
+# and configures health checks to ensure the application is ready
+# before receiving traffic.
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: express-hello
+  namespace: demo
+  labels:
+    app: express-hello
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: express-hello
+  template:
+    metadata:
+      labels:
+        app: express-hello
+    spec:
+      containers:
+        - name: app
+          image: 851725248206.dkr.ecr.us-west-1.amazonaws.com/express-hello:v5
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          # Optional liveness probe to restart the pod if the app crashes
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3

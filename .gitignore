@@ -8,3 +8,7 @@ terraform/path
 # terraform local vars
 terraform.tfvars
 *.tfvars
+**/terraform.tfstate**
+**/**tfplan
+**/node_modules
+**/.terraform

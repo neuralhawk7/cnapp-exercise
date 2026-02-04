@@ -14,7 +14,7 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
+  region = us-east-1
 }
 
 # --- Inputs: reuse existing EKS VPC + subnets ---

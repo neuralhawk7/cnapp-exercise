@@ -7,6 +7,7 @@ cluster_name  = "cnapp-demo-eks"
 
 # Exercise-friendly defaults (adjust as needed)
 ssh_ingress_cidr = "76.170.1.247/32"
+public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
 
 # If your code expects these, keep them here as examples:
 # mongo_instance_type = "t3.micro"

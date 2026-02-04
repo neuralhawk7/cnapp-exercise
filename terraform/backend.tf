@@ -1,6 +1,6 @@
 terraform {
   backend "remote" {
-    organization = "YOUR_ORG"
+    organization = "neuralhawk7-org"
 
     workspaces {
       name = "cnapp-exercise"
