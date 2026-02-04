@@ -1,0 +1,64 @@
+name: Terraform Cloud — trigger plan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      org:
+        description: 'Terraform Cloud organization (overrides secret TFC_ORG)'
+        required: false
+      workspace:
+        description: 'Terraform Cloud workspace name (overrides secret TFC_WORKSPACE)'
+        required: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    env:
+      TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
+      TFC_ORG: ${{ secrets.TFC_ORG }}
+      TFC_WORKSPACE: ${{ secrets.TFC_WORKSPACE }}
+
+    steps:
+      - name: Validate inputs and env
+        run: |
+          echo "Using TFC_ORG=${{ github.event.inputs.org || env.TFC_ORG }}"
+          echo "Using TFC_WORKSPACE=${{ github.event.inputs.workspace || env.TFC_WORKSPACE }}"
+
+      - name: Get workspace id
+        id: ws
+        run: |
+          ORG="${{ github.event.inputs.org || env.TFC_ORG }}"
+          WS="${{ github.event.inputs.workspace || env.TFC_WORKSPACE }}"
+          if [ -z "$ORG" ] || [ -z "$WS" ]; then
+            echo "Missing TFC_ORG or TFC_WORKSPACE. Set as repo secrets or pass via workflow_dispatch." >&2
+            exit 1
+          fi
+
+          resp=$(curl -sS -H "Authorization: Bearer ${TFC_TOKEN}" \
+            -H "Content-Type: application/vnd.api+json" \
+            "https://app.terraform.io/api/v2/organizations/$ORG/workspaces/$WS")
+          ws_id=$(echo "$resp" | jq -r '.data.id')
+          if [ "$ws_id" = "null" ] || [ -z "$ws_id" ]; then
+            echo "Unable to find workspace $WS in org $ORG" >&2
+            echo "resp: $resp" >&2
+            exit 1
+          fi
+          echo "workspace_id=$ws_id" >> $GITHUB_OUTPUT
+
+      - name: Create run in Terraform Cloud
+        id: create_run
+        run: |
+          ws_id=${{ steps.ws.outputs.workspace_id }}
+          payload=$(jq -n --arg ws_id "$ws_id" '{data: {attributes: {"is-destroy": false, message: "Plan triggered from GitHub Actions"}, type: "runs", relationships: {workspace: {data: {type: "workspaces", id: $ws_id}}}}}')
+
+          resp=$(curl -sS -X POST -H "Authorization: Bearer ${TFC_TOKEN}" \
+            -H "Content-Type: application/vnd.api+json" \
+            -d "$payload" \
+            "https://app.terraform.io/api/v2/runs")
+
+          echo "$resp" | jq '.'
+
+      - name: Notify
+        run: echo "Terraform Cloud plan requested. Check TFC runs for status."
