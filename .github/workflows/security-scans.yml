@@ -35,16 +35,26 @@ jobs:
         id: dockerfile
         run: |
           found=false
-          if [ -f Dockerfile ] || [ -f */Dockerfile ]; then found=true; fi
+          if [ -f Dockerfile ] || [ -f app/Dockerfile ] || [ -f */Dockerfile ]; then found=true; fi
           echo "found=$found" >> $GITHUB_OUTPUT
 
-      - name: (Optional) Trivy image scan (skipped if no Dockerfile)
+      - name: Build Docker image (if Dockerfile present)
+        if: steps.dockerfile.outputs.found == 'true'
+        uses: docker/build-push-action@v4
+        with:
+          push: false
+          load: true
+          tags: ${{ github.repository }}:${{ github.sha }}
+          file: app/Dockerfile
+
+      - name: Trivy image scan (skipped if no Dockerfile)
         if: steps.dockerfile.outputs.found == 'true'
         uses: aquasecurity/trivy-action@v0.9.0
         with:
           scan-type: image
-          image-ref: "docker.io/library/placeholder:latest"
-        # Note: image-ref should be updated to the actual image you want to scan
+          image-ref: ${{ github.repository }}:${{ github.sha }}
+          format: sarif
+          output: trivy-image.sarif
 
       - name: Upload Trivy SARIF artifacts
         if: always()
@@ -54,6 +64,7 @@ jobs:
           path: |
             trivy-iac.sarif
             trivy-fs.sarif
+            trivy-image.sarif
 
       - name: Upload Trivy SARIF to Code Scanning (optional)
         if: always()

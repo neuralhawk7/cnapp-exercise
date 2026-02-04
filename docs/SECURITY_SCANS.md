@@ -4,7 +4,7 @@ This repository includes non-blocking security scans that run on PRs and pushes.
 
 ## What runs
 
-- **Trivy** — filesystem and IaC scans by default. If a Dockerfile and an image reference are present, you can also run image scans.
+- Trivy — filesystem and IaC scans by default. If a `Dockerfile` is present in `app/` (or repo root), the workflow will attempt to build the image locally and run a Trivy image scan (SARIF). The built image uses the tag `${{ github.repository }}:${{ github.sha }}`.
 - **Legitify** — GitHub repo/workflow and settings checks. For org-level checks you may need a PAT with extra scopes.
 
 ## Where the workflow lives
