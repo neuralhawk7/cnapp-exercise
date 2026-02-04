@@ -25,3 +25,7 @@ This repository includes a GitHub Action that runs Checkov against the Terraform
 - Use of public ACLs on objects
 
 If you'd like the action to become blocking in the future (fail PRs when critical issues are discovered), we can change the workflow to fail on non-zero exit code or add gating logic based on severity.
+
+---
+
+Note: This repo also runs non-blocking Trivy and Legitify scans (see `docs/SECURITY_SCANS.md`) which scan for container/image vulnerabilities, IaC issues, and GitHub/workflow misconfigurations.

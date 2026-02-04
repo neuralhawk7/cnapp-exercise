@@ -1,0 +1,102 @@
+name: Security scans (informational)
+
+on:
+  pull_request:
+  push:
+    branches: [ main, 'feature/**', '**' ]
+
+jobs:
+  trivy:
+    name: Trivy scans (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker (for image scans if needed)
+        uses: docker/setup-buildx-action@v2
+
+      - name: Trivy IaC scan (SARIF)
+        uses: aquasecurity/trivy-action@v0.9.0
+        with:
+          scan-type: iac
+          format: sarif
+          output: trivy-iac.sarif
+
+      - name: Trivy filesystem scan (SARIF)
+        uses: aquasecurity/trivy-action@v0.9.0
+        with:
+          scan-type: fs
+          format: sarif
+          output: trivy-fs.sarif
+
+      - name: Check for Dockerfile
+        id: dockerfile
+        run: |
+          found=false
+          if [ -f Dockerfile ] || [ -f */Dockerfile ]; then found=true; fi
+          echo "found=$found" >> $GITHUB_OUTPUT
+
+      - name: (Optional) Trivy image scan (skipped if no Dockerfile)
+        if: steps.dockerfile.outputs.found == 'true'
+        uses: aquasecurity/trivy-action@v0.9.0
+        with:
+          scan-type: image
+          image-ref: "docker.io/library/placeholder:latest"
+        # Note: image-ref should be updated to the actual image you want to scan
+
+      - name: Upload Trivy SARIF artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-sarif
+          path: |
+            trivy-iac.sarif
+            trivy-fs.sarif
+
+      - name: Upload Trivy SARIF to Code Scanning (optional)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: trivy-iac.sarif
+
+  legitify:
+    name: Legitify scan (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install requirements (best-effort)
+        run: |
+          set -e
+          # Try to download the legitify binary from releases (best-effort; failure is non-blocking)
+          curl -sL "https://github.com/legitify/legitify/releases/latest/download/legitify_linux_amd64.tar.gz" -o legitify.tar.gz || true
+          tar -xzf legitify.tar.gz || true
+          chmod +x ./legitify || true
+          ./legitify --version || true
+
+      - name: Run Legitify scan (best-effort)
+        env:
+          LEGITIFY_TOKEN: ${{ secrets.LEGITIFY_TOKEN }}
+        run: |
+          if [ -x ./legitify ]; then
+            ./legitify scan --github-token "$LEGITIFY_TOKEN" --format sarif --output legitify.sarif || true
+          else
+            echo "Legitify CLI not installed; skipping scan"
+          fi
+
+      - name: Upload Legitify SARIF artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legitify-sarif
+          path: legitify.sarif
+
+      - name: Upload Legitify SARIF to Code Scanning (optional)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: legitify.sarif
