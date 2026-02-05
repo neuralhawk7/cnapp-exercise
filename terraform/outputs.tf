@@ -3,42 +3,32 @@ output "region" {
   value       = var.region
 }
 
-output "cluster_name" {
-  description = "EKS cluster name"
-  value       = module.eks.cluster_name
+output "mongo_instance_id" {
+  description = "MongoDB EC2 instance ID"
+  value       = aws_instance.mongo.id
 }
 
-output "cluster_endpoint" {
-  description = "EKS cluster endpoint"
-  value       = module.eks.cluster_endpoint
+output "mongo_public_ip" {
+  description = "Public IP of MongoDB instance"
+  value       = aws_instance.mongo.public_ip
 }
 
-output "cluster_security_group_id" {
-  description = "Cluster security group ID"
-  value       = module.eks.cluster_security_group_id
+output "mongo_security_group_id" {
+  description = "MongoDB security group ID"
+  value       = aws_security_group.mongo_vm.id
 }
 
-output "vpc_id" {
-  description = "VPC ID created/used by the EKS stack"
-  value       = module.vpc.vpc_id
+output "backup_bucket_name" {
+  description = "S3 bucket name for MongoDB backups"
+  value       = aws_s3_bucket.backups.id
 }
 
-output "private_subnet_ids" {
-  description = "Private subnet IDs"
-  value       = module.vpc.private_subnets
+output "public_subnet_id" {
+  description = "Public subnet ID"
+  value       = aws_subnet.public.id
 }
 
-output "public_subnet_ids" {
-  description = "Public subnet IDs"
-  value       = module.vpc.public_subnets
-}
-
-output "oidc_provider_arn" {
-  description = "OIDC provider ARN for IRSA"
-  value       = module.eks.oidc_provider_arn
-}
-
-output "node_security_group_id" {
-  description = "Node security group ID"
-  value       = module.eks.node_security_group_id
+output "igw_id" {
+  description = "Internet Gateway ID"
+  value       = data.aws_internet_gateway.existing.id
 }

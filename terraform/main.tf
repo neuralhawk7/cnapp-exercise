@@ -4,17 +4,20 @@ data "aws_vpc" "target" {
   id = var.vpc_id
 }
 
-############################
-# Internet Gateway + Public Subnet
-############################
-resource "aws_internet_gateway" "igw" {
-  vpc_id = data.aws_vpc.target.id
-  tags   = { Name = "${var.name}-igw" }
+data "aws_internet_gateway" "existing" {
+  filter {
+    name   = "attachment.vpc-id"
+    values = [data.aws_vpc.target.id]
+  }
 }
+
+############################
+# Public Subnet (use existing IGW)
+############################
 
 resource "aws_subnet" "public" {
   vpc_id                  = data.aws_vpc.target.id
-  cidr_block              = var.public_subnet_cidr
+  cidr_block              = "172.31.96.0/24"
   availability_zone       = var.public_subnet_az
   map_public_ip_on_launch = true
 
@@ -33,7 +36,7 @@ resource "aws_route_table" "public" {
 resource "aws_route" "public_internet" {
   route_table_id         = aws_route_table.public.id
   destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.igw.id
+  gateway_id             = data.aws_internet_gateway.existing.id
 }
 
 resource "aws_route_table_association" "public_assoc" {
@@ -74,7 +77,7 @@ resource "aws_security_group" "mongo_vm" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["76.170.1.247/32"]
   }
 
   ingress {
@@ -184,7 +187,7 @@ resource "aws_instance" "mongo" {
 
   iam_instance_profile = aws_iam_instance_profile.mongo_vm_profile.name
 
-  user_data = templatefile("${path.module}/userdata.sh.tftpl", {
+  user_data = templatefile("${path.module}/mongo-vm/userdata.sh.tftpl", {
     mongo_admin_user = var.mongo_admin_user
     mongo_admin_pass = var.mongo_admin_pass
     backup_bucket    = aws_s3_bucket.backups.bucket

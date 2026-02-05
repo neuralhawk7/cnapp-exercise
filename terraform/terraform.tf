@@ -3,11 +3,12 @@
 
 terraform {
 
-  # cloud {
-  #   workspaces {
-  #     name = "learn-terraform-eks"
-  #   }
-  # }
+  cloud {
+    organization = "neuralhawk7-org"
+    workspaces {
+      name = "cnapp-exercise-8206"
+    }
+  }
 
   required_providers {
     aws = {
@@ -32,5 +33,9 @@ terraform {
   }
 
   required_version = "~> 1.3"
+}
+
+provider "aws" {
+  region = var.region
 }
 
