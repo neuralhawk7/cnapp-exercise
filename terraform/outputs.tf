@@ -25,7 +25,7 @@ output "backup_bucket_name" {
 
 output "public_subnet_id" {
   description = "Public subnet ID"
-  value       = aws_subnet.public.id
+  value       = data.aws_subnet.public_existing.id
 }
 
 output "igw_id" {

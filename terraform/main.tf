@@ -6,6 +6,18 @@ data "aws_vpc" "target" {
 
 data "aws_caller_identity" "current" {}
 
+data "aws_subnet" "public_existing" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.target.id]
+  }
+
+  filter {
+    name   = "cidr-block"
+    values = [var.public_subnet_cidr]
+  }
+}
+
 data "aws_internet_gateway" "existing" {
   filter {
     name   = "attachment.vpc-id"
@@ -14,21 +26,8 @@ data "aws_internet_gateway" "existing" {
 }
 
 ############################
-# Public Subnet (use existing IGW)
+# Public Subnet (use existing)
 ############################
-
-resource "aws_subnet" "public" {
-  vpc_id                  = data.aws_vpc.target.id
-  cidr_block              = var.public_subnet_cidr
-  availability_zone       = var.public_subnet_az
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "${var.name}-public-subnet"
-    # Not required for EC2, but harmless; helps if you ever use it for ELB
-    "kubernetes.io/role/elb" = "1"
-  }
-}
 
 resource "aws_route_table" "public" {
   vpc_id = data.aws_vpc.target.id
@@ -42,7 +41,7 @@ resource "aws_route" "public_internet" {
 }
 
 resource "aws_route_table_association" "public_assoc" {
-  subnet_id      = aws_subnet.public.id
+  subnet_id      = data.aws_subnet.public_existing.id
   route_table_id = aws_route_table.public.id
 }
 
@@ -51,6 +50,22 @@ data "aws_subnets" "vpc" {
     name   = "vpc-id"
     values = [data.aws_vpc.target.id]
   }
+}
+
+data "aws_subnets" "default_for_az" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.target.id]
+  }
+
+  filter {
+    name   = "default-for-az"
+    values = ["true"]
+  }
+}
+
+locals {
+  alb_subnet_ids = slice(data.aws_subnets.default_for_az.ids, 0, 2)
 }
 
 ############################
@@ -77,7 +92,7 @@ data "aws_ami" "debian10" {
 # - Mongo restricted to VPC CIDR (K8s network only)
 ############################
 resource "aws_security_group" "mongo_vm" {
-  name        = "${var.name}-mongo-vm-sg"
+  name_prefix = "${var.name}-mongo-vm-sg-"
   description = "Public SSH; Mongo only from VPC"
   vpc_id      = data.aws_vpc.target.id
 
@@ -108,7 +123,7 @@ resource "aws_security_group" "mongo_vm" {
 }
 
 resource "aws_security_group" "alb" {
-  name        = "${var.name}-alb-sg"
+  name_prefix = "${var.name}-alb-sg-"
   description = "Public HTTP for WAF test ALB"
   vpc_id      = data.aws_vpc.target.id
 
@@ -255,7 +270,7 @@ resource "aws_s3_bucket_policy" "public_read_and_list" {
 resource "aws_lb" "waf" {
   name               = "${var.name}-waf-alb"
   load_balancer_type = "application"
-  subnets            = data.aws_subnets.vpc.ids
+  subnets            = local.alb_subnet_ids
   security_groups    = [aws_security_group.alb.id]
 }
 
@@ -326,12 +341,12 @@ resource "aws_detective_graph" "main" {
 resource "aws_securityhub_account" "main" {}
 
 resource "aws_securityhub_standards_subscription" "aws_foundational" {
-  standards_arn = "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0"
+  standards_arn = "arn:aws:securityhub:${var.region}::standards/aws-foundational-security-best-practices/v/1.0.0"
   depends_on    = [aws_securityhub_account.main]
 }
 
 resource "aws_securityhub_standards_subscription" "cis_1_4" {
-  standards_arn = "arn:aws:securityhub:::standards/cis-aws-foundations-benchmark/v/1.4.0"
+  standards_arn = "arn:aws:securityhub:${var.region}::standards/cis-aws-foundations-benchmark/v/1.4.0"
   depends_on    = [aws_securityhub_account.main]
 }
 
@@ -346,7 +361,7 @@ resource "aws_inspector2_enabler" "main" {
 resource "aws_instance" "mongo" {
   ami                         = data.aws_ami.debian10.id
   instance_type               = var.instance_type
-  subnet_id                   = aws_subnet.public.id
+  subnet_id                   = data.aws_subnet.public_existing.id
   vpc_security_group_ids      = [aws_security_group.mongo_vm.id]
   key_name                    = var.key_name
   associate_public_ip_address = true
