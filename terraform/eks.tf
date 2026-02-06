@@ -6,6 +6,7 @@ module "eks" {
   cluster_version = var.eks_cluster_version
 
   cluster_endpoint_public_access = true
+  cluster_enabled_log_types      = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = local.eks_subnet_ids

@@ -1,5 +1,9 @@
+############################
 data "aws_caller_identity" "current" {}
 
+############################
+# Public Subnet (use existing)
+############################
 locals {
   alb_subnet_ids = module.vpc.public_subnets
   eks_subnet_ids = module.vpc.private_subnets
