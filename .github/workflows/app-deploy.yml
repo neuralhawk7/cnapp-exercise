@@ -31,11 +31,6 @@ jobs:
       ECR_REPO: ${{ inputs.ecr_repo }}
       EKS_CLUSTER_NAME: ${{ inputs.eks_cluster_name }}
     steps:
-      - name: Check AWS role secret
-        if: ${{ secrets.AWS_ROLE_ARN == '' }}
-        run: |
-          echo "AWS_ROLE_ARN is not set. Configure the secret to enable deploys."
-          exit 1
       - name: Checkout
         uses: actions/checkout@v4
       - name: Configure AWS credentials
