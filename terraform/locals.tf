@@ -12,7 +12,7 @@ locals {
   recommended_tags = {
     service_tier       = var.service_tier
     compliance_scope   = var.compliance_scope
-    lifecycle          = var.lifecycle
+    lifecycle          = var.lifecycle_stage
     repo               = var.repo
     deployment_method  = var.deployment_method
     support_contact    = var.support_contact

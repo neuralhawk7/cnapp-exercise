@@ -102,7 +102,7 @@ variable "compliance_scope" {
   default     = ""
 }
 
-variable "lifecycle" {
+variable "lifecycle_stage" {
   description = "Recommended tag: lifecycle"
   type        = string
   default     = ""
