@@ -1,0 +1,75 @@
+name: Security Scans
+
+on:
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      ghcr_image:
+        description: "GHCR image to scan"
+        required: false
+        default: "ghcr.io/${{ github.repository }}/express-hello:latest"
+      ecr_repo:
+        description: "ECR repo name"
+        required: false
+        default: "cnapp-demo/express-hello"
+      aws_region:
+        description: "AWS region"
+        required: false
+        default: "us-east-1"
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+jobs:
+  trivy-ghcr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Trivy scan GHCR image
+        uses: aquasecurity/trivy-action@v0.24.0
+        continue-on-error: true
+        with:
+          image-ref: ${{ inputs.ghcr_image }}
+          format: sarif
+          output: trivy-ghcr.sarif
+      - name: Upload GHCR SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-ghcr.sarif
+
+  trivy-ecr:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.AWS_ROLE_ARN != '' }}
+    env:
+      AWS_REGION: ${{ inputs.aws_region }}
+      ECR_REPO: ${{ inputs.ecr_repo }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Resolve ECR image
+        id: image
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "image_uri=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest" >> "$GITHUB_OUTPUT"
+      - name: Trivy scan ECR image
+        uses: aquasecurity/trivy-action@v0.24.0
+        continue-on-error: true
+        with:
+          image-ref: ${{ steps.image.outputs.image_uri }}
+          format: sarif
+          output: trivy-ecr.sarif
+      - name: Upload ECR SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-ecr.sarif

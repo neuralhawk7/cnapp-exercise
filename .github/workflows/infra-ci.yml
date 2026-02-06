@@ -1,0 +1,63 @@
+name: Infra CI
+
+on:
+  push:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infra-ci.yml"
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/infra-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  terraform-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Terraform fmt
+        run: terraform -chdir=terraform fmt -check
+      - name: Terraform init
+        run: terraform -chdir=terraform init -backend=false
+      - name: Terraform validate
+        run: terraform -chdir=terraform validate
+
+  checkov:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          output_format: sarif
+          output_file_path: results.sarif
+          soft_fail: true
+      - name: Upload Checkov SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
+
+  yor-trace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Yor trace
+        run: docker run --rm -v "$PWD":/repo bridgecrew/yor tag -d /repo/terraform -o /repo/yor_report.json
+        continue-on-error: true
+      - name: Upload Yor report
+        uses: actions/upload-artifact@v4
+        with:
+          name: yor-report
+          path: yor_report.json
+        if: always()

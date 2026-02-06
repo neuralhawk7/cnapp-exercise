@@ -1,0 +1,31 @@
+name: Infra Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      terraform_dir:
+        description: "Terraform directory"
+        required: false
+        default: "terraform"
+
+permissions:
+  contents: read
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO != '' }}
+    env:
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+      TF_IN_AUTOMATION: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Terraform init
+        run: terraform -chdir=${{ inputs.terraform_dir }} init
+      - name: Terraform plan
+        run: terraform -chdir=${{ inputs.terraform_dir }} plan -input=false
+      - name: Terraform apply
+        run: terraform -chdir=${{ inputs.terraform_dir }} apply -auto-approve -input=false

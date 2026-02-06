@@ -1,0 +1,59 @@
+name: App Build and Deploy
+
+on:
+  push:
+    paths:
+      - "app/**"
+      - ".github/workflows/app-deploy.yml"
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS region"
+        required: false
+        default: "us-east-1"
+      ecr_repo:
+        description: "ECR repo name"
+        required: false
+        default: "cnapp-demo/express-hello"
+      eks_cluster_name:
+        description: "EKS cluster name"
+        required: false
+        default: "express-hello-v2"
+
+permissions:
+  contents: read
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.AWS_ROLE_ARN != '' }}
+    env:
+      AWS_REGION: ${{ inputs.aws_region }}
+      ECR_REPO: ${{ inputs.ecr_repo }}
+      EKS_CLUSTER_NAME: ${{ inputs.eks_cluster_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Resolve image URI
+        id: image
+        run: |
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          echo "image_uri=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest" >> "$GITHUB_OUTPUT"
+      - name: Build and push image
+        run: |
+          docker buildx build --platform linux/amd64 \
+            -t "${{ steps.image.outputs.image_uri }}" \
+            --push app
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+      - name: Rollout deployment
+        run: |
+          kubectl -n demo set image deploy/express-hello app="${{ steps.image.outputs.image_uri }}"
+          kubectl -n demo rollout status deploy/express-hello --timeout=180s
