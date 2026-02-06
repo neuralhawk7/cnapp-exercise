@@ -48,10 +48,19 @@ data "aws_subnets" "default_for_az" {
   }
 }
 
+data "aws_subnet" "default_for_az_detail" {
+  for_each = toset(data.aws_subnets.default_for_az.ids)
+  id       = each.value
+}
+
 locals {
-  default_subnet_ids = sort(data.aws_subnets.default_for_az.ids)
-  alb_subnet_ids     = slice(local.default_subnet_ids, 0, 2)
-  eks_subnet_ids     = local.default_subnet_ids
+  allowed_eks_azs = var.eks_control_plane_azs
+  default_subnet_ids = sort([
+    for subnet in data.aws_subnet.default_for_az_detail : subnet.id
+    if contains(local.allowed_eks_azs, subnet.availability_zone)
+  ])
+  alb_subnet_ids = slice(local.default_subnet_ids, 0, 2)
+  eks_subnet_ids = local.default_subnet_ids
 }
 
 ############################
@@ -78,7 +87,7 @@ data "aws_ami" "debian10" {
 # - Mongo restricted to VPC CIDR (K8s network only)
 ############################
 resource "aws_security_group" "mongo_vm" {
-  name_prefix = "${var.name}-mongo-vm-sg-"
+  name        = "${var.name}-mongo-vm-sg"
   description = "Public SSH; Mongo only from VPC"
   vpc_id      = data.aws_vpc.target.id
 
@@ -317,23 +326,26 @@ resource "aws_wafv2_web_acl_association" "alb" {
 }
 
 resource "aws_guardduty_detector" "main" {
+  count  = var.manage_guardduty ? 1 : 0
   enable = true
 }
 
 resource "aws_detective_graph" "main" {
-  depends_on = [aws_guardduty_detector.main]
+  count = var.manage_detective ? 1 : 0
 }
 
-resource "aws_securityhub_account" "main" {}
+resource "aws_securityhub_account" "main" {
+  count = var.manage_securityhub ? 1 : 0
+}
 
 resource "aws_securityhub_standards_subscription" "aws_foundational" {
+  count         = var.manage_securityhub ? 1 : 0
   standards_arn = "arn:aws:securityhub:${var.region}::standards/aws-foundational-security-best-practices/v/1.0.0"
-  depends_on    = [aws_securityhub_account.main]
 }
 
 resource "aws_securityhub_standards_subscription" "cis_1_4" {
+  count         = var.manage_securityhub ? 1 : 0
   standards_arn = "arn:aws:securityhub:${var.region}::standards/cis-aws-foundations-benchmark/v/1.4.0"
-  depends_on    = [aws_securityhub_account.main]
 }
 
 resource "aws_inspector2_enabler" "main" {

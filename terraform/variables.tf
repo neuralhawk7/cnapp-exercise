@@ -50,6 +50,30 @@ variable "mongo_admin_pass" {
   sensitive   = true
 }
 
+variable "eks_control_plane_azs" {
+  description = "Allowed availability zones for the EKS control plane"
+  type        = list(string)
+  default     = ["us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-east-1f"]
+}
+
+variable "manage_guardduty" {
+  description = "Whether Terraform should create GuardDuty (false if already enabled)"
+  type        = bool
+  default     = false
+}
+
+variable "manage_detective" {
+  description = "Whether Terraform should create Detective (false if already enabled)"
+  type        = bool
+  default     = false
+}
+
+variable "manage_securityhub" {
+  description = "Whether Terraform should enable Security Hub (false if already enabled)"
+  type        = bool
+  default     = false
+}
+
 variable "eks_cluster_name" {
   description = "EKS cluster name"
   type        = string
