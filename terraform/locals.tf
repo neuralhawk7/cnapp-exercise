@@ -10,20 +10,20 @@ locals {
   }
 
   recommended_tags = {
-    service_tier       = var.service_tier
-    compliance_scope   = var.compliance_scope
-    lifecycle          = var.lifecycle_stage
-    repo               = var.repo
-    deployment_method  = var.deployment_method
-    support_contact    = var.support_contact
+    service_tier      = var.service_tier
+    compliance_scope  = var.compliance_scope
+    lifecycle         = var.lifecycle_stage
+    repo              = var.repo
+    deployment_method = var.deployment_method
+    support_contact   = var.support_contact
   }
 
   optional_tags = {
-    customer_facing     = var.customer_facing
-    rto_hours           = var.rto_hours
-    rpo_minutes         = var.rpo_minutes
-    backup_enabled      = var.backup_enabled
-    monitoring_enabled  = var.monitoring_enabled
+    customer_facing    = var.customer_facing
+    rto_hours          = var.rto_hours
+    rpo_minutes        = var.rpo_minutes
+    backup_enabled     = var.backup_enabled
+    monitoring_enabled = var.monitoring_enabled
   }
 
   non_empty_tags = merge(
