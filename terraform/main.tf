@@ -1,15 +1,6 @@
-  }
-  allowed_eks_azs = var.eks_control_plane_azs
-  default_subnet_ids = sort([
-    if contains(local.allowed_eks_azs, subnet.availability_zone)
-  ])
-  alb_subnet_ids = slice(local.default_subnet_ids, 0, 2)
-  eks_subnet_ids = local.default_subnet_ids
-=======
 locals {
   alb_subnet_ids = module.vpc.public_subnets
   eks_subnet_ids = module.vpc.private_subnets
->>>>>>> 6bcfe92 (Move EKS to private subnets and add wizexercise file)
 }
 
 ############################
