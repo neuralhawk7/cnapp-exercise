@@ -14,22 +14,23 @@ permissions:
 jobs:
   terraform-apply:
     runs-on: ubuntu-latest
-    env:
-      TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-      TF_IN_AUTOMATION: "true"
     steps:
-      - name: Check Terraform Cloud token
-        if: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO == '' }}
-        run: |
-          echo "TF_TOKEN_APP_TERRAFORM_IO is not set. Configure the secret to enable apply."
-          exit 1
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
       - name: Terraform init
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_IN_AUTOMATION: "true"
         run: terraform -chdir=${{ inputs.terraform_dir }} init
       - name: Terraform plan
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_IN_AUTOMATION: "true"
         run: terraform -chdir=${{ inputs.terraform_dir }} plan -input=false
       - name: Terraform apply
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_IN_AUTOMATION: "true"
         run: terraform -chdir=${{ inputs.terraform_dir }} apply -auto-approve -input=false
