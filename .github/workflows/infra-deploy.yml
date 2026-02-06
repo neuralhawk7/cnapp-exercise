@@ -41,33 +41,11 @@ jobs:
             -H "Content-Type: application/vnd.api+json" \
             "https://app.terraform.io/api/v2/organizations/${TFC_ORG}/workspaces/${TFC_WORKSPACE}")
 
-          WORKSPACE_ID=$(python3 - <<'PY'
-import json,sys
-data=json.load(sys.stdin)
-print(data["data"]["id"])
-PY
-          <<<"${WORKSPACE_JSON}")
+          WORKSPACE_ID=$(printf '%s' "${WORKSPACE_JSON}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])')
 
-          RUN_PAYLOAD=$(cat <<EOF
-{
-  "data": {
-    "attributes": {
-      "message": "Triggered by GitHub Actions: infra-deploy",
-      "is-destroy": false
-    },
-    "type": "runs",
-    "relationships": {
-      "workspace": {
-        "data": {
-          "type": "workspaces",
-          "id": "${WORKSPACE_ID}"
-        }
-      }
-    }
-  }
-}
-EOF
-          )
+          export WORKSPACE_ID
+
+          RUN_PAYLOAD=$(python3 -c 'import json,os; print(json.dumps({"data": {"attributes": {"message": "Triggered by GitHub Actions: infra-deploy", "is-destroy": False}, "type": "runs", "relationships": {"workspace": {"data": {"type": "workspaces", "id": os.environ["WORKSPACE_ID"]}}}}}))')
 
           RUN_JSON=$(curl -sS \
             -H "Authorization: Bearer ${TFC_TOKEN}" \
@@ -75,12 +53,7 @@ EOF
             -d "${RUN_PAYLOAD}" \
             "https://app.terraform.io/api/v2/runs")
 
-          RUN_ID=$(python3 - <<'PY'
-import json,sys
-data=json.load(sys.stdin)
-print(data["data"]["id"])
-PY
-          <<<"${RUN_JSON}")
+          RUN_ID=$(printf '%s' "${RUN_JSON}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])')
 
           echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
         id: tfc
@@ -99,12 +72,7 @@ PY
               -H "Content-Type: application/vnd.api+json" \
               "https://app.terraform.io/api/v2/runs/${RUN_ID}")
 
-            STATUS=$(python3 - <<'PY'
-import json,sys
-data=json.load(sys.stdin)
-print(data["data"]["attributes"]["status"])
-PY
-            <<<"${RUN_STATUS_JSON}")
+            STATUS=$(printf '%s' "${RUN_STATUS_JSON}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["attributes"]["status"])')
 
             echo "Run status: ${STATUS}"
 
