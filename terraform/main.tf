@@ -64,6 +64,10 @@ resource "aws_security_group" "alb" {
   description = "Public HTTP for WAF test ALB"
   vpc_id      = module.vpc.vpc_id
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   ingress {
     description = "HTTP from Internet"
     from_port   = 80
