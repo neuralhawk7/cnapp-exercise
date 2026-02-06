@@ -8,7 +8,7 @@ on:
       ghcr_image:
         description: "GHCR image to scan"
         required: false
-        default: "ghcr.io/${{ github.repository }}/express-hello:latest"
+        default: ""
       ecr_repo:
         description: "ECR repo name"
         required: false
@@ -37,7 +37,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.24.0
         continue-on-error: true
         with:
-          image-ref: ${{ inputs.ghcr_image }}
+          image-ref: ${{ inputs.ghcr_image != '' && inputs.ghcr_image || format('ghcr.io/{0}/express-hello:latest', github.repository) }}
           format: sarif
           output: trivy-ghcr.sarif
       - name: Upload GHCR SARIF
@@ -50,23 +50,22 @@ jobs:
     env:
       AWS_REGION: ${{ inputs.aws_region }}
       ECR_REPO: ${{ inputs.ecr_repo }}
+      AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
     steps:
-      - name: Check AWS role secret
-        if: ${{ secrets.AWS_ROLE_ARN == '' }}
-        run: |
-          echo "AWS_ROLE_ARN is not set. Skipping ECR scan."
-          exit 1
       - name: Configure AWS credentials
+        if: ${{ env.AWS_ROLE_ARN != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
       - name: Resolve ECR image
         id: image
+        if: ${{ env.AWS_ROLE_ARN != '' }}
         run: |
           ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
           echo "image_uri=${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:latest" >> "$GITHUB_OUTPUT"
       - name: Trivy scan ECR image
+        if: ${{ env.AWS_ROLE_ARN != '' }}
         uses: aquasecurity/trivy-action@v0.24.0
         continue-on-error: true
         with:
@@ -74,6 +73,7 @@ jobs:
           format: sarif
           output: trivy-ecr.sarif
       - name: Upload ECR SARIF
+        if: ${{ env.AWS_ROLE_ARN != '' }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-ecr.sarif
