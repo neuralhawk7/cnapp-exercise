@@ -21,10 +21,8 @@ spec:
           image: 851725248206.dkr.ecr.us-east-1.amazonaws.com/cnapp-demo/express-hello:latest
           imagePullPolicy: Always
           env:
-            - name: MONGO_HOST
-              value: "10.0.1.115"
             - name: MONGO_URI
-              value: "mongodb://admin:MongoPass%402026Secure@$(MONGO_HOST):27017/admin"
+              value: "mongodb://admin:MongoPass%402026Secure@10.0.1.115:27017/admin"
             - name: MONGO_DB
               value: "wizdb"
           ports:
