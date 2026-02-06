@@ -101,7 +101,7 @@ variable "manage_securityhub" {
 variable "eks_cluster_name" {
   description = "EKS cluster name"
   type        = string
-  default     = "express-hello"
+  default     = "express-hello-v2"
 }
 
 variable "eks_cluster_version" {
