@@ -209,7 +209,7 @@ resource "aws_s3_bucket_policy" "public_read_and_list" {
 }
 
 resource "aws_lb" "waf" {
-  name_prefix        = "${var.name}-waf-alb-"
+  name_prefix        = "waf-"
   load_balancer_type = "application"
   subnets            = local.alb_subnet_ids
   security_groups    = [aws_security_group.alb.id]
