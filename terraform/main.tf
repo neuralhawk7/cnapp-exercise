@@ -29,22 +29,6 @@ data "aws_internet_gateway" "existing" {
 # Public Subnet (use existing)
 ############################
 
-resource "aws_route_table" "public" {
-  vpc_id = data.aws_vpc.target.id
-  tags   = { Name = "${var.name}-public-rt" }
-}
-
-resource "aws_route" "public_internet" {
-  route_table_id         = aws_route_table.public.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = data.aws_internet_gateway.existing.id
-}
-
-resource "aws_route_table_association" "public_assoc" {
-  subnet_id      = data.aws_subnet.public_existing.id
-  route_table_id = aws_route_table.public.id
-}
-
 data "aws_subnets" "vpc" {
   filter {
     name   = "vpc-id"
