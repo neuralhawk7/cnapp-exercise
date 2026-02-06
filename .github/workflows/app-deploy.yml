@@ -43,6 +43,8 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+      - name: Who am I
+        run: aws sts get-caller-identity
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
       - name: Resolve image URI
