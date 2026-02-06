@@ -49,7 +49,9 @@ data "aws_subnets" "default_for_az" {
 }
 
 locals {
-  alb_subnet_ids = slice(data.aws_subnets.default_for_az.ids, 0, 2)
+  default_subnet_ids = sort(data.aws_subnets.default_for_az.ids)
+  alb_subnet_ids     = slice(local.default_subnet_ids, 0, 2)
+  eks_subnet_ids     = local.default_subnet_ids
 }
 
 ############################

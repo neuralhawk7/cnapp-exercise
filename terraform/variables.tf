@@ -50,6 +50,42 @@ variable "mongo_admin_pass" {
   sensitive   = true
 }
 
+variable "eks_cluster_name" {
+  description = "EKS cluster name"
+  type        = string
+  default     = "express-hello"
+}
+
+variable "eks_cluster_version" {
+  description = "EKS Kubernetes version"
+  type        = string
+  default     = "1.30"
+}
+
+variable "eks_node_instance_type" {
+  description = "EKS node instance type"
+  type        = string
+  default     = "t3.small"
+}
+
+variable "eks_node_min_size" {
+  description = "EKS node group minimum size"
+  type        = number
+  default     = 1
+}
+
+variable "eks_node_max_size" {
+  description = "EKS node group maximum size"
+  type        = number
+  default     = 3
+}
+
+variable "eks_node_desired_size" {
+  description = "EKS node group desired size"
+  type        = number
+  default     = 1
+}
+
 variable "app_name" {
   description = "Mandatory tag: application name"
   type        = string
