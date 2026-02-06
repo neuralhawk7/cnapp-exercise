@@ -12,6 +12,16 @@ module "eks" {
 
   enable_irsa = true
 
+  manage_aws_auth_configmap = true
+
+  aws_auth_roles = [
+    {
+      rolearn  = var.eks_admin_role_arn
+      username = "admin"
+      groups   = ["system:masters"]
+    }
+  ]
+
   eks_managed_node_groups = {
     default = {
       instance_types = [var.eks_node_instance_type]

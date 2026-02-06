@@ -110,6 +110,11 @@ variable "eks_node_desired_size" {
   default     = 1
 }
 
+variable "eks_admin_role_arn" {
+  description = "IAM role ARN granted cluster-admin access via aws-auth"
+  type        = string
+}
+
 variable "app_name" {
   description = "Mandatory tag: application name"
   type        = string
