@@ -12,15 +12,21 @@ module "eks" {
 
   enable_irsa = true
 
-  manage_aws_auth_configmap = true
+  access_entries = {
+    admin = {
+      principal_arn = var.eks_admin_role_arn
+      type          = "STANDARD"
 
-  aws_auth_roles = [
-    {
-      rolearn  = var.eks_admin_role_arn
-      username = "admin"
-      groups   = ["system:masters"]
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
     }
-  ]
+  }
 
   eks_managed_node_groups = {
     default = {
