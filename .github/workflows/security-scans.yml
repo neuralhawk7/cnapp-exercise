@@ -52,6 +52,7 @@ jobs:
           image-ref: ${{ steps.image.outputs.image_uri }}
           format: sarif
           output: trivy-ecr.sarif
+          trivy-args: --skip-version-check
       - name: Upload ECR SARIF
         if: ${{ env.AWS_ROLE_ARN != '' && hashFiles('trivy-ecr.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4
