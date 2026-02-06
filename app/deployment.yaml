@@ -15,9 +15,10 @@ spec:
       labels:
         app: express-hello
     spec:
+      serviceAccountName: express-hello-sa
       containers:
         - name: app
-          image: 864981759915.dkr.ecr.us-east-1.amazonaws.com/cnapp-demo/express-hello:latest
+          image: 851725248206.dkr.ecr.us-east-1.amazonaws.com/cnapp-demo/express-hello:latest
           imagePullPolicy: Always
           env:
             - name: MONGO_URI

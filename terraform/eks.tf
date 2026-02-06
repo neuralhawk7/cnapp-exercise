@@ -7,7 +7,7 @@ module "eks" {
 
   cluster_endpoint_public_access = true
 
-  vpc_id     = data.aws_vpc.target.id
+  vpc_id     = module.vpc.vpc_id
   subnet_ids = local.eks_subnet_ids
 
   enable_irsa = true
@@ -34,6 +34,7 @@ module "eks" {
       min_size       = var.eks_node_min_size
       max_size       = var.eks_node_max_size
       desired_size   = var.eks_node_desired_size
+      subnet_ids     = local.eks_subnet_ids
     }
   }
 }

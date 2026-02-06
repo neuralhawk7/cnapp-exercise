@@ -1,66 +1,15 @@
-
-############################
-data "aws_vpc" "target" {
-  id = var.vpc_id
-}
-
-data "aws_caller_identity" "current" {}
-
-data "aws_subnet" "public_existing" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.target.id]
   }
-
-  filter {
-    name   = "cidr-block"
-    values = [var.public_subnet_cidr]
-  }
-}
-
-data "aws_internet_gateway" "existing" {
-  filter {
-    name   = "attachment.vpc-id"
-    values = [data.aws_vpc.target.id]
-  }
-}
-
-############################
-# Public Subnet (use existing)
-############################
-
-data "aws_subnets" "vpc" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.target.id]
-  }
-}
-
-data "aws_subnets" "default_for_az" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.target.id]
-  }
-
-  filter {
-    name   = "default-for-az"
-    values = ["true"]
-  }
-}
-
-data "aws_subnet" "default_for_az_detail" {
-  for_each = toset(data.aws_subnets.default_for_az.ids)
-  id       = each.value
-}
-
-locals {
   allowed_eks_azs = var.eks_control_plane_azs
   default_subnet_ids = sort([
-    for subnet in data.aws_subnet.default_for_az_detail : subnet.id
     if contains(local.allowed_eks_azs, subnet.availability_zone)
   ])
   alb_subnet_ids = slice(local.default_subnet_ids, 0, 2)
   eks_subnet_ids = local.default_subnet_ids
+=======
+locals {
+  alb_subnet_ids = module.vpc.public_subnets
+  eks_subnet_ids = module.vpc.private_subnets
+>>>>>>> 6bcfe92 (Move EKS to private subnets and add wizexercise file)
 }
 
 ############################
@@ -89,7 +38,7 @@ data "aws_ami" "debian10" {
 resource "aws_security_group" "mongo_vm" {
   name        = "${var.name}-mongo-vm-sg"
   description = "Public SSH; Mongo only from VPC"
-  vpc_id      = data.aws_vpc.target.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     description = "SSH from Internet (required by assignment)"
@@ -104,7 +53,7 @@ resource "aws_security_group" "mongo_vm" {
     from_port   = 27017
     to_port     = 27017
     protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.target.cidr_block] # 10.0.0.0/16
+    cidr_blocks = [module.vpc.vpc_cidr_block] # 10.0.0.0/16
   }
 
   egress {
@@ -120,7 +69,7 @@ resource "aws_security_group" "mongo_vm" {
 resource "aws_security_group" "alb" {
   name_prefix = "${var.name}-alb-sg-"
   description = "Public HTTP for WAF test ALB"
-  vpc_id      = data.aws_vpc.target.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     description = "HTTP from Internet"
@@ -209,7 +158,7 @@ resource "aws_flow_log" "vpc" {
   log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
   log_destination_type = "cloud-watch-logs"
   traffic_type         = "ALL"
-  vpc_id               = data.aws_vpc.target.id
+  vpc_id               = module.vpc.vpc_id
 }
 
 ############################
@@ -359,7 +308,7 @@ resource "aws_inspector2_enabler" "main" {
 resource "aws_instance" "mongo" {
   ami                         = data.aws_ami.debian10.id
   instance_type               = var.instance_type
-  subnet_id                   = data.aws_subnet.public_existing.id
+  subnet_id                   = module.vpc.public_subnets[0]
   vpc_security_group_ids      = [aws_security_group.mongo_vm.id]
   key_name                    = var.key_name
   associate_public_ip_address = true

@@ -25,12 +25,27 @@ output "backup_bucket_name" {
 
 output "public_subnet_id" {
   description = "Public subnet ID"
-  value       = data.aws_subnet.public_existing.id
+  value       = module.vpc.public_subnets[0]
 }
 
 output "igw_id" {
   description = "Internet Gateway ID"
-  value       = data.aws_internet_gateway.existing.id
+  value       = module.vpc.igw_id
+}
+
+output "eks_cluster_name" {
+  description = "EKS cluster name"
+  value       = module.eks.cluster_name
+}
+
+output "eks_cluster_endpoint" {
+  description = "EKS cluster API endpoint"
+  value       = module.eks.cluster_endpoint
+}
+
+output "eks_cluster_security_group_id" {
+  description = "EKS cluster security group ID"
+  value       = module.eks.cluster_security_group_id
 }
 
 output "eks_cluster_name" {
