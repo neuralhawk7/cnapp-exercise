@@ -2,19 +2,34 @@
 set -euxo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
+########################################
+# Point to archived Debian repos (Buster is EOL)
+########################################
+cat > /etc/apt/sources.list <<'SOURCES'
+deb http://archive.debian.org/debian buster main contrib non-free
+deb http://archive.debian.org/debian buster-updates main contrib non-free
+deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+SOURCES
+
 apt-get update -y
 apt-get install -y curl gnupg ca-certificates cron awscli
 
 ########################################
-# Install MongoDB 4.2 on Debian 10 (Buster) - outdated
+# Install MongoDB 4.2 on Debian 10 (Buster) - outdated / vulnerable version
 ########################################
-curl -fsSL https://pgp.mongodb.com/server-4.2.asc | apt-key add -
+curl -fsSL https://pgp.mongodb.com/server-4.2.asc | apt-key add - || true
 echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/4.2 main" > /etc/apt/sources.list.d/mongodb-org-4.2.list
-apt-get update -y
-apt-get install -y mongodb-org
+apt-get update -y --allow-insecure-repositories || true
+apt-get install -y --allow-unauthenticated mongodb-org
 
 systemctl enable mongod
 systemctl start mongod
+
+########################################
+# Listen on all interfaces (required for VPC access)
+########################################
+sed -i 's/^  bindIp:.*$/  bindIp: 0.0.0.0/' /etc/mongod.conf
+systemctl restart mongod
 
 ########################################
 # Create admin user BEFORE enabling auth
@@ -48,8 +63,8 @@ mongodump \
   --password "${mongo_admin_pass}" \
   --authenticationDatabase admin
 
-# Upload (bucket policy already allows public reads, but we also set ACL to be safe)
-aws s3 cp "$OUT" "s3://${backup_bucket}/backups/mongodump-$TS.archive.gz" --acl public-read
+# Upload (bucket policy already allows public reads)
+aws s3 cp "$OUT" "s3://${backup_bucket}/backups/mongodump-$TS.archive.gz"
 
 # Cleanup
 rm -f "$OUT"

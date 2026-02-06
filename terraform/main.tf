@@ -4,6 +4,8 @@ data "aws_vpc" "target" {
   id = var.vpc_id
 }
 
+data "aws_caller_identity" "current" {}
+
 data "aws_internet_gateway" "existing" {
   filter {
     name   = "attachment.vpc-id"
@@ -17,7 +19,7 @@ data "aws_internet_gateway" "existing" {
 
 resource "aws_subnet" "public" {
   vpc_id                  = data.aws_vpc.target.id
-  cidr_block              = "172.31.96.0/24"
+  cidr_block              = var.public_subnet_cidr
   availability_zone       = var.public_subnet_az
   map_public_ip_on_launch = true
 
@@ -42,6 +44,13 @@ resource "aws_route" "public_internet" {
 resource "aws_route_table_association" "public_assoc" {
   subnet_id      = aws_subnet.public.id
   route_table_id = aws_route_table.public.id
+}
+
+data "aws_subnets" "vpc" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.target.id]
+  }
 }
 
 ############################
@@ -98,6 +107,29 @@ resource "aws_security_group" "mongo_vm" {
   tags = { Name = "${var.name}-mongo-vm-sg" }
 }
 
+resource "aws_security_group" "alb" {
+  name        = "${var.name}-alb-sg"
+  description = "Public HTTP for WAF test ALB"
+  vpc_id      = data.aws_vpc.target.id
+
+  ingress {
+    description = "HTTP from Internet"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "${var.name}-alb-sg" }
+}
+
 ############################
 # Highly privileged instance profile (intentionally)
 ############################
@@ -122,6 +154,52 @@ resource "aws_iam_role_policy_attachment" "admin" {
 resource "aws_iam_instance_profile" "mongo_vm_profile" {
   name = "${var.name}-mongo-vm-profile"
   role = aws_iam_role.mongo_vm_role.name
+}
+
+resource "aws_iam_role" "vpc_flow_logs" {
+  name = "${var.name}-vpc-flow-logs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "vpc-flow-logs.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "vpc_flow_logs" {
+  name = "${var.name}-vpc-flow-logs-policy"
+  role = aws_iam_role.vpc_flow_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DescribeLogGroups",
+        "logs:DescribeLogStreams",
+        "logs:PutLogEvents"
+      ],
+      Resource = "*"
+    }]
+  })
+}
+
+resource "aws_cloudwatch_log_group" "vpc_flow_logs" {
+  name              = "/aws/vpc/${var.name}/flow-logs"
+  retention_in_days = 30
+}
+
+resource "aws_flow_log" "vpc" {
+  iam_role_arn         = aws_iam_role.vpc_flow_logs.arn
+  log_destination      = aws_cloudwatch_log_group.vpc_flow_logs.arn
+  log_destination_type = "cloud-watch-logs"
+  traffic_type         = "ALL"
+  vpc_id               = data.aws_vpc.target.id
 }
 
 ############################
@@ -172,6 +250,94 @@ resource "aws_s3_bucket_policy" "public_read_and_list" {
   })
 
   depends_on = [aws_s3_bucket_public_access_block.backups]
+}
+
+resource "aws_lb" "waf" {
+  name               = "${var.name}-waf-alb"
+  load_balancer_type = "application"
+  subnets            = data.aws_subnets.vpc.ids
+  security_groups    = [aws_security_group.alb.id]
+}
+
+resource "aws_lb_listener" "waf_http" {
+  load_balancer_arn = aws_lb.waf.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "waf test"
+      status_code  = "200"
+    }
+  }
+}
+
+resource "aws_wafv2_web_acl" "main" {
+  name  = "${var.name}-waf"
+  scope = "REGIONAL"
+
+  default_action {
+    allow {}
+  }
+
+  rule {
+    name     = "count-all"
+    priority = 1
+    action {
+      count {}
+    }
+
+    statement {
+      rate_based_statement {
+        limit              = 2000
+        aggregate_key_type = "IP"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "count-all"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "${var.name}-waf"
+    sampled_requests_enabled   = true
+  }
+}
+
+resource "aws_wafv2_web_acl_association" "alb" {
+  resource_arn = aws_lb.waf.arn
+  web_acl_arn  = aws_wafv2_web_acl.main.arn
+}
+
+resource "aws_guardduty_detector" "main" {
+  enable = true
+}
+
+resource "aws_detective_graph" "main" {
+  depends_on = [aws_guardduty_detector.main]
+}
+
+resource "aws_securityhub_account" "main" {}
+
+resource "aws_securityhub_standards_subscription" "aws_foundational" {
+  standards_arn = "arn:aws:securityhub:::standards/aws-foundational-security-best-practices/v/1.0.0"
+  depends_on    = [aws_securityhub_account.main]
+}
+
+resource "aws_securityhub_standards_subscription" "cis_1_4" {
+  standards_arn = "arn:aws:securityhub:::standards/cis-aws-foundations-benchmark/v/1.4.0"
+  depends_on    = [aws_securityhub_account.main]
+}
+
+resource "aws_inspector2_enabler" "main" {
+  account_ids    = [data.aws_caller_identity.current.account_id]
+  resource_types = ["EC2"]
 }
 
 ############################
