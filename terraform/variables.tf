@@ -49,3 +49,109 @@ variable "mongo_admin_pass" {
   type        = string
   sensitive   = true
 }
+
+variable "app_name" {
+  description = "Mandatory tag: application name"
+  type        = string
+}
+
+variable "environment" {
+  description = "Mandatory tag: environment (dev|test|staging|prod|lab)"
+  type        = string
+
+  validation {
+    condition     = contains(["dev", "test", "staging", "prod", "lab"], var.environment)
+    error_message = "environment must be one of: dev, test, staging, prod, lab."
+  }
+}
+
+variable "business_unit" {
+  description = "Mandatory tag: business unit"
+  type        = string
+}
+
+variable "cost_center" {
+  description = "Mandatory tag: cost center"
+  type        = string
+}
+
+variable "owner_business" {
+  description = "Mandatory tag: business owner"
+  type        = string
+}
+
+variable "owner_technical" {
+  description = "Mandatory tag: technical owner"
+  type        = string
+}
+
+variable "data_classification" {
+  description = "Mandatory tag: data classification"
+  type        = string
+}
+
+variable "service_tier" {
+  description = "Recommended tag: service tier"
+  type        = string
+  default     = ""
+}
+
+variable "compliance_scope" {
+  description = "Recommended tag: compliance scope"
+  type        = string
+  default     = ""
+}
+
+variable "lifecycle" {
+  description = "Recommended tag: lifecycle"
+  type        = string
+  default     = ""
+}
+
+variable "repo" {
+  description = "Recommended tag: repository URL or name"
+  type        = string
+  default     = ""
+}
+
+variable "deployment_method" {
+  description = "Recommended tag: deployment method"
+  type        = string
+  default     = ""
+}
+
+variable "support_contact" {
+  description = "Recommended tag: support contact"
+  type        = string
+  default     = ""
+}
+
+variable "customer_facing" {
+  description = "Optional tag: customer facing"
+  type        = string
+  default     = ""
+}
+
+variable "rto_hours" {
+  description = "Optional tag: RTO in hours"
+  type        = string
+  default     = ""
+}
+
+variable "rpo_minutes" {
+  description = "Optional tag: RPO in minutes"
+  type        = string
+  default     = ""
+}
+
+variable "backup_enabled" {
+  description = "Optional tag: backups enabled"
+  type        = string
+  default     = ""
+}
+
+variable "monitoring_enabled" {
+  description = "Optional tag: monitoring enabled"
+  type        = string
+  default     = ""
+}
