@@ -1,0 +1,13 @@
+{
+  "name": "express-hello",
+  "version": "1.0.0",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongodb": "^4.17.2"
+  }
+}

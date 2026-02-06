@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: express-hello
+  namespace: demo
+  labels:
+    app: express-hello
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: express-hello
+  template:
+    metadata:
+      labels:
+        app: express-hello
+    spec:
+      containers:
+        - name: app
+          image: 864981759915.dkr.ecr.us-east-1.amazonaws.com/cnapp-demo/express-hello:latest
+          imagePullPolicy: Always
+          env:
+            - name: MONGO_URI
+              value: "mongodb://admin:MongoPass%402026Secure@ec2-54-224-62-198.compute-1.amazonaws.com:27017/admin"
+            - name: MONGO_DB
+              value: "wizdb"
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 3
