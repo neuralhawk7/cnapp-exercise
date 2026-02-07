@@ -1,22 +1,18 @@
-# Wiz Technical Exercise - Presentation Guide
+# Technical Exercise - Presentation Guide
 
 ## 45-Minute Presentation Structure
 
-### Slide Deck Overview
+### Concept Deck Overview
 
-This guide provides a recommended slide structure for the Wiz Technical Exercise presentation.
-
----
-
-## SLIDE 1: Title Slide
-**Title:** Wiz Technical Exercise - Cloud Native Application Security
-**Subtitle:** Two-Tier Web Application with Intentional Misconfigurations
-**Your Name**
-**Date**
+This guide provides a recommended Concept structure for the Technical Exercise presentation.
 
 ---
 
-## SLIDE 2: Agenda
+## Concept 1: Overview of Exercise
+
+---
+
+## Concept 2: Agenda
 1. Overview & Objectives
 2. Architecture Walkthrough
 3. DevOps Implementation
@@ -29,7 +25,7 @@ This guide provides a recommended slide structure for the Wiz Technical Exercise
 
 ---
 
-## SLIDE 3: Exercise Objectives
+## Concept 3: Exercise Objectives
 **What Was Built:**
 - Two-tier web application (Express + MongoDB)
 - Deployed on AWS (EKS + EC2)
@@ -48,7 +44,7 @@ This guide provides a recommended slide structure for the Wiz Technical Exercise
 
 ---
 
-## SLIDE 4: High-Level Architecture
+## Concept 4: High-Level Architecture
 **Visual:** Show the high-level architecture diagram from EXERCISE_GUIDE.md
 
 **Key Components:**
@@ -62,7 +58,7 @@ This guide provides a recommended slide structure for the Wiz Technical Exercise
 
 ---
 
-## SLIDE 5: Network Architecture
+## Concept 5: Network Architecture
 **Visual:** Show network topology diagram
 
 **Discuss:**
@@ -80,7 +76,7 @@ This guide provides a recommended slide structure for the Wiz Technical Exercise
 
 ---
 
-## SLIDE 6: Application Stack
+## Concept 6: Application Stack
 **Frontend/Backend:**
 - Node.js Express application
 - Containerized with Docker
@@ -98,7 +94,7 @@ This guide provides a recommended slide structure for the Wiz Technical Exercise
 
 ---
 
-## SLIDE 7: Infrastructure as Code
+## Concept 7: Infrastructure as Code
 **Terraform Structure:**
 ```
 terraform/
@@ -122,7 +118,7 @@ terraform/
 
 ---
 
-## SLIDE 8: CI/CD Pipeline - Infrastructure
+## Concept 8: CI/CD Pipeline - Infrastructure
 **Workflow:** `.github/workflows/infra-ci.yml`
 
 **Pipeline Steps:**
@@ -143,7 +139,7 @@ terraform/
 
 ---
 
-## SLIDE 9: CI/CD Pipeline - Application
+## Concept 9: CI/CD Pipeline - Application
 **Workflow:** `.github/workflows/app-deploy.yml`
 
 **Pipeline Steps:**
@@ -163,7 +159,7 @@ terraform/
 
 ---
 
-## SLIDE 10: Detective Security Controls
+## Concept 10: Detective Security Controls
 **AWS Services Implemented:**
 
 | Service | Purpose | Integration |
@@ -182,7 +178,7 @@ terraform/
 
 ---
 
-## SLIDE 11: Preventive Security Controls
+## Concept 11: Preventive Security Controls
 **Controls Implemented:**
 
 **AWS WAF:**
@@ -206,7 +202,7 @@ terraform/
 
 ---
 
-## SLIDE 12: CI/CD Security Scanning
+## Concept 12: CI/CD Security Scanning
 **Tools Integrated:**
 
 **Checkov** (IaC Scanning):
@@ -228,7 +224,7 @@ terraform/
 
 ---
 
-## SLIDE 13: Intentional Misconfigurations - Critical
+## Concept 13: Intentional Misconfigurations - Critical
 **🔴 Critical Severity**
 
 ### 1. Public S3 Bucket
@@ -249,7 +245,7 @@ terraform/
 
 ---
 
-## SLIDE 14: Intentional Misconfigurations - High
+## Concept 14: Intentional Misconfigurations - High
 **🟠 High Severity**
 
 ### 1. SSH Exposed to Internet
@@ -276,7 +272,7 @@ terraform/
 
 ---
 
-## SLIDE 15: Security Findings Summary
+## Concept 15: Security Findings Summary
 **Visual:** Pie chart or table
 
 | Severity | Count | Examples |
@@ -292,7 +288,7 @@ terraform/
 
 ---
 
-## SLIDE 16: Detection Capabilities
+## Concept 16: Detection Capabilities
 **How Misconfigurations Are Detected:**
 
 | Misconfiguration | Detection Method |
@@ -313,7 +309,7 @@ terraform/
 
 ---
 
-## SLIDE 17: Live Demo Preview
+## Concept 17: Live Demo Preview
 **What You'll See:**
 
 1. **Application Demo**
@@ -341,7 +337,7 @@ terraform/
 
 ---
 
-## SLIDE 18: Methodology & Approach
+## Concept 18: Methodology & Approach
 **Design Decisions:**
 
 **Why AWS?**
@@ -368,7 +364,7 @@ terraform/
 
 ---
 
-## SLIDE 19: Challenges Faced
+## Concept 19: Challenges Faced
 **Key Challenges & Solutions:**
 
 1. **Challenge:** Balancing security with intentional misconfigurations
@@ -390,7 +386,7 @@ terraform/
 
 ---
 
-## SLIDE 20: Production Improvements
+## Concept 20: Production Improvements
 **What Would I Add for Production?**
 
 **High Priority:**
@@ -414,7 +410,7 @@ terraform/
 
 ---
 
-## SLIDE 21: Real-World Relevance
+## Concept 21: Real-World Relevance
 **These Aren't Just Theoretical:**
 
 **Common Real-World Scenarios:**
@@ -435,7 +431,7 @@ terraform/
 
 ---
 
-## SLIDE 22: Value of CNAPP Solutions
+## Concept 22: Value of CNAPP Solutions
 **What Problems Do CNAPP Platforms Solve?**
 
 **Visibility:**
@@ -464,7 +460,7 @@ terraform/
 
 ---
 
-## SLIDE 23: Thank You & Questions
+## Concept 23: Thank You & Questions
 **Summary:**
 - Built two-tier web application with intentional misconfigurations
 - Implemented comprehensive DevOps automation
@@ -475,7 +471,7 @@ terraform/
 **Next Steps:**
 - Live walkthrough
 - Q&A discussion
-- Wiz platform overview
+- platform overview
 
 **Contact Information:**
 - GitHub: [repository link]
@@ -583,7 +579,7 @@ aws s3 ls s3://[backup-bucket]/
 A: Exercise requires intentional misconfigurations on VM (SSH exposure, outdated OS/DB, overly permissive IAM). Managed service doesn't allow this level of control.
 
 **Q: How would you secure this for production?**
-A: See slide 20 - move to private subnet, restrict SSH, update software, remove public S3, apply least privilege, add encryption, implement network policies.
+A: See Concept 20 - move to private subnet, restrict SSH, update software, remove public S3, apply least privilege, add encryption, implement network policies.
 
 **Q: What's your disaster recovery plan?**
 A: Daily S3 backups (currently public - would be private in prod), multi-AZ deployment, would add multi-region replication, automated failover, tested restore procedures.
