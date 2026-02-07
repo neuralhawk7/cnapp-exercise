@@ -28,7 +28,7 @@ jobs:
       - name: Terraform init
         run: terraform -chdir=terraform init -backend=false
       - name: Terraform validate
-        run: terraform -chdir=terraform validate
+        run: terraform -chdir=terraform validate -var-file=ci.tfvars
 
   checkov:
     runs-on: ubuntu-latest

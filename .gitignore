@@ -8,6 +8,7 @@ terraform/path
 # terraform local vars
 terraform.tfvars
 *.tfvars
+!terraform/ci.tfvars
 # terraform state files (never commit these)
 *.tfstate
 *.tfstate.*

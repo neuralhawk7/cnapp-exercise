@@ -320,11 +320,11 @@ resource "aws_s3_bucket" "waf_logs" {
 }
 
 resource "aws_s3_bucket_public_access_block" "waf_logs" {
-  count                  = var.waf_logging_enabled ? 1 : 0
-  bucket                 = aws_s3_bucket.waf_logs[0].id
-  block_public_acls      = true
-  block_public_policy    = true
-  ignore_public_acls     = true
+  count                   = var.waf_logging_enabled ? 1 : 0
+  bucket                  = aws_s3_bucket.waf_logs[0].id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
@@ -407,8 +407,8 @@ resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
 }
 
 resource "aws_wafv2_web_acl_logging_configuration" "main" {
-  count                  = var.waf_logging_enabled ? 1 : 0
-  resource_arn           = aws_wafv2_web_acl.main.arn
+  count                   = var.waf_logging_enabled ? 1 : 0
+  resource_arn            = aws_wafv2_web_acl.main.arn
   log_destination_configs = [aws_kinesis_firehose_delivery_stream.waf_logs[0].arn]
 }
 
@@ -614,8 +614,8 @@ resource "aws_cloudtrail" "main" {
   is_multi_region_trail         = true
   is_organization_trail         = var.cloudtrail_is_organization_trail
   enable_log_file_validation    = true
-  cloud_watch_logs_group_arn     = var.cloudtrail_enable_cloudwatch_logs ? "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*" : null
-  cloud_watch_logs_role_arn      = var.cloudtrail_enable_cloudwatch_logs ? aws_iam_role.cloudtrail[0].arn : null
+  cloud_watch_logs_group_arn    = var.cloudtrail_enable_cloudwatch_logs ? "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*" : null
+  cloud_watch_logs_role_arn     = var.cloudtrail_enable_cloudwatch_logs ? aws_iam_role.cloudtrail[0].arn : null
 
   depends_on = [aws_s3_bucket_policy.cloudtrail]
 }
