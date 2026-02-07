@@ -35,12 +35,12 @@ output "cloudtrail_bucket_name" {
 
 output "config_bucket_name" {
   description = "S3 bucket name for AWS Config logs"
-  value       = aws_s3_bucket.config.id
+  value       = var.manage_config ? aws_s3_bucket.config[0].id : null
 }
 
 output "securityhub_sns_topic_arn" {
   description = "SNS topic ARN for Security Hub findings"
-  value       = var.manage_securityhub ? aws_sns_topic.securityhub_findings[0].arn : null
+  value       = (var.manage_securityhub || var.manage_securityhub_subscriptions) ? aws_sns_topic.securityhub_findings[0].arn : null
 }
 
 output "public_subnet_id" {

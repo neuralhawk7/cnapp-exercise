@@ -330,33 +330,33 @@ resource "aws_securityhub_standards_subscription" "cis_1_4" {
 }
 
 resource "aws_securityhub_product_subscription" "guardduty" {
-  count       = var.manage_securityhub ? 1 : 0
+  count       = var.manage_securityhub_subscriptions ? 1 : 0
   product_arn = "arn:aws:securityhub:${var.region}::product/aws/guardduty"
 
   depends_on = [aws_securityhub_account.main]
 }
 
 resource "aws_securityhub_product_subscription" "inspector" {
-  count       = var.manage_securityhub ? 1 : 0
+  count       = var.manage_securityhub_subscriptions ? 1 : 0
   product_arn = "arn:aws:securityhub:${var.region}::product/aws/inspector"
 
   depends_on = [aws_securityhub_account.main]
 }
 
 resource "aws_securityhub_product_subscription" "config" {
-  count       = var.manage_securityhub ? 1 : 0
+  count       = var.manage_securityhub_subscriptions ? 1 : 0
   product_arn = "arn:aws:securityhub:${var.region}::product/aws/config"
 
   depends_on = [aws_securityhub_account.main]
 }
 
 resource "aws_sns_topic" "securityhub_findings" {
-  count = var.manage_securityhub ? 1 : 0
+  count = (var.manage_securityhub || var.manage_securityhub_subscriptions) ? 1 : 0
   name  = "${var.name}-securityhub-findings"
 }
 
 resource "aws_cloudwatch_event_rule" "securityhub_findings" {
-  count       = var.manage_securityhub ? 1 : 0
+  count       = (var.manage_securityhub || var.manage_securityhub_subscriptions) ? 1 : 0
   name        = "${var.name}-securityhub-findings"
   description = "Forward Security Hub findings to SNS"
 
@@ -367,13 +367,13 @@ resource "aws_cloudwatch_event_rule" "securityhub_findings" {
 }
 
 resource "aws_cloudwatch_event_target" "securityhub_to_sns" {
-  count = var.manage_securityhub ? 1 : 0
+  count = (var.manage_securityhub || var.manage_securityhub_subscriptions) ? 1 : 0
   rule  = aws_cloudwatch_event_rule.securityhub_findings[0].name
   arn   = aws_sns_topic.securityhub_findings[0].arn
 }
 
 resource "aws_sns_topic_policy" "securityhub_findings" {
-  count = var.manage_securityhub ? 1 : 0
+  count = (var.manage_securityhub || var.manage_securityhub_subscriptions) ? 1 : 0
   arn   = aws_sns_topic.securityhub_findings[0].arn
 
   policy = jsonencode({
@@ -477,18 +477,21 @@ resource "aws_cloudtrail" "main" {
 # AWS Config
 ############################
 resource "random_string" "config_suffix" {
+  count   = var.manage_config ? 1 : 0
   length  = 8
   special = false
   upper   = false
 }
 
 resource "aws_s3_bucket" "config" {
-  bucket        = "${var.name}-config-${random_string.config_suffix.result}"
+  count         = var.manage_config ? 1 : 0
+  bucket        = "${var.name}-config-${random_string.config_suffix[0].result}"
   force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "config" {
-  bucket                  = aws_s3_bucket.config.id
+  count                   = var.manage_config ? 1 : 0
+  bucket                  = aws_s3_bucket.config[0].id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -496,6 +499,7 @@ resource "aws_s3_bucket_public_access_block" "config" {
 }
 
 data "aws_iam_policy_document" "config_bucket" {
+  count = var.manage_config ? 1 : 0
   statement {
     sid = "AWSConfigAclCheck"
 
@@ -505,7 +509,7 @@ data "aws_iam_policy_document" "config_bucket" {
     }
 
     actions   = ["s3:GetBucketAcl"]
-    resources = [aws_s3_bucket.config.arn]
+    resources = [aws_s3_bucket.config[0].arn]
   }
 
   statement {
@@ -517,7 +521,7 @@ data "aws_iam_policy_document" "config_bucket" {
     }
 
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.config.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"]
+    resources = ["${aws_s3_bucket.config[0].arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"]
 
     condition {
       test     = "StringEquals"
@@ -528,14 +532,16 @@ data "aws_iam_policy_document" "config_bucket" {
 }
 
 resource "aws_s3_bucket_policy" "config" {
-  bucket = aws_s3_bucket.config.id
-  policy = data.aws_iam_policy_document.config_bucket.json
+  count  = var.manage_config ? 1 : 0
+  bucket = aws_s3_bucket.config[0].id
+  policy = data.aws_iam_policy_document.config_bucket[0].json
 
   depends_on = [aws_s3_bucket_public_access_block.config]
 }
 
 resource "aws_iam_role" "config" {
-  name = "${var.name}-config-role"
+  count = var.manage_config ? 1 : 0
+  name  = "${var.name}-config-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
@@ -547,14 +553,54 @@ resource "aws_iam_role" "config" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "config" {
-  role       = aws_iam_role.config.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSConfigRole"
+resource "aws_iam_role_policy" "config" {
+  count = var.manage_config ? 1 : 0
+  name  = "${var.name}-config-policy"
+  role  = aws_iam_role.config[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "config:Put*",
+          "config:Get*",
+          "config:List*",
+          "config:Describe*",
+          "config:BatchGet*",
+          "config:Deliver*"
+        ],
+        Resource = "*"
+      },
+      {
+        Effect = "Allow",
+        Action = ["s3:GetBucketAcl", "s3:ListBucket"],
+        Resource = [aws_s3_bucket.config[0].arn]
+      },
+      {
+        Effect = "Allow",
+        Action = ["s3:PutObject"],
+        Resource = ["${aws_s3_bucket.config[0].arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"],
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      },
+      {
+        Effect = "Allow",
+        Action = ["cloudwatch:PutMetricData"],
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 resource "aws_config_configuration_recorder" "main" {
+  count    = var.manage_config ? 1 : 0
   name     = "${var.name}-config"
-  role_arn = aws_iam_role.config.arn
+  role_arn = aws_iam_role.config[0].arn
 
   recording_group {
     all_supported                 = true
@@ -563,14 +609,16 @@ resource "aws_config_configuration_recorder" "main" {
 }
 
 resource "aws_config_delivery_channel" "main" {
+  count          = var.manage_config ? 1 : 0
   name           = "${var.name}-config"
-  s3_bucket_name = aws_s3_bucket.config.bucket
+  s3_bucket_name = aws_s3_bucket.config[0].bucket
 
   depends_on = [aws_s3_bucket_policy.config]
 }
 
 resource "aws_config_configuration_recorder_status" "main" {
-  name       = aws_config_configuration_recorder.main.name
+  count      = var.manage_config ? 1 : 0
+  name       = aws_config_configuration_recorder.main[0].name
   is_enabled = true
 
   depends_on = [aws_config_delivery_channel.main]

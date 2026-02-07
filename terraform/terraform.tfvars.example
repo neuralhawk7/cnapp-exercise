@@ -16,3 +16,5 @@ ssh_ingress_cidr = "0.0.0.0/0"
 manage_guardduty   = true
 manage_detective   = true
 manage_securityhub = true
+manage_securityhub_subscriptions = true
+manage_config = true

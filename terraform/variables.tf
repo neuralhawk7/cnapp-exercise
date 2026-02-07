@@ -83,19 +83,31 @@ variable "eks_control_plane_azs" {
 variable "manage_guardduty" {
   description = "Whether Terraform should create GuardDuty (false if already enabled)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "manage_detective" {
   description = "Whether Terraform should create Detective (false if already enabled)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "manage_securityhub" {
   description = "Whether Terraform should enable Security Hub (false if already enabled)"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "manage_securityhub_subscriptions" {
+  description = "Whether Terraform should create Security Hub product subscriptions"
+  type        = bool
+  default     = false
+}
+
+variable "manage_config" {
+  description = "Whether Terraform should create AWS Config resources (false if already enabled)"
+  type        = bool
+  default     = false
 }
 
 variable "eks_cluster_name" {
