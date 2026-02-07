@@ -446,7 +446,7 @@ data "aws_iam_policy_document" "cloudtrail_bucket" {
     }
 
     actions   = ["s3:PutObject"]
-    resources = ["${aws_s3_bucket.cloudtrail.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"]
+    resources = var.cloudtrail_is_organization_trail ? ["${aws_s3_bucket.cloudtrail.arn}/AWSLogs/${var.cloudtrail_org_id}/*"] : ["${aws_s3_bucket.cloudtrail.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"]
 
     condition {
       test     = "StringEquals"
@@ -463,12 +463,53 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
   depends_on = [aws_s3_bucket_public_access_block.cloudtrail]
 }
 
+resource "aws_cloudwatch_log_group" "cloudtrail" {
+  count             = var.cloudtrail_enable_cloudwatch_logs ? 1 : 0
+  name              = "/aws/cloudtrail/${var.name}"
+  retention_in_days = var.cloudtrail_log_retention_days
+}
+
+resource "aws_iam_role" "cloudtrail" {
+  count = var.cloudtrail_enable_cloudwatch_logs ? 1 : 0
+  name  = "${var.name}-cloudtrail-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "cloudtrail.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "cloudtrail" {
+  count = var.cloudtrail_enable_cloudwatch_logs ? 1 : 0
+  name  = "${var.name}-cloudtrail-logs-policy"
+  role  = aws_iam_role.cloudtrail[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect = "Allow",
+      Action = [
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      Resource = "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*"
+    }]
+  })
+}
+
 resource "aws_cloudtrail" "main" {
   name                          = "${var.name}-trail"
   s3_bucket_name                = aws_s3_bucket.cloudtrail.bucket
   include_global_service_events = true
   is_multi_region_trail         = true
+  is_organization_trail         = var.cloudtrail_is_organization_trail
   enable_log_file_validation    = true
+  cloud_watch_logs_group_arn     = var.cloudtrail_enable_cloudwatch_logs ? "${aws_cloudwatch_log_group.cloudtrail[0].arn}:*" : null
+  cloud_watch_logs_role_arn      = var.cloudtrail_enable_cloudwatch_logs ? aws_iam_role.cloudtrail[0].arn : null
 
   depends_on = [aws_s3_bucket_policy.cloudtrail]
 }

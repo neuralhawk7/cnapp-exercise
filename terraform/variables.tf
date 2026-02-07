@@ -110,6 +110,35 @@ variable "manage_config" {
   default     = false
 }
 
+variable "cloudtrail_enable_cloudwatch_logs" {
+  description = "Whether CloudTrail should deliver to CloudWatch Logs"
+  type        = bool
+  default     = true
+}
+
+variable "cloudtrail_log_retention_days" {
+  description = "CloudTrail CloudWatch Logs retention in days"
+  type        = number
+  default     = 90
+}
+
+variable "cloudtrail_is_organization_trail" {
+  description = "Whether CloudTrail should be an organization trail"
+  type        = bool
+  default     = false
+}
+
+variable "cloudtrail_org_id" {
+  description = "AWS Organization ID for organization trails (example: o-xxxxxxxxxx)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.cloudtrail_is_organization_trail ? length(var.cloudtrail_org_id) > 0 : true
+    error_message = "cloudtrail_org_id must be set when cloudtrail_is_organization_trail is true."
+  }
+}
+
 variable "eks_cluster_name" {
   description = "EKS cluster name"
   type        = string
