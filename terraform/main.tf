@@ -302,6 +302,27 @@ resource "aws_securityhub_standards_subscription" "cis_1_4" {
   standards_arn = "arn:aws:securityhub:${var.region}::standards/cis-aws-foundations-benchmark/v/1.4.0"
 }
 
+resource "aws_securityhub_product_subscription" "guardduty" {
+  count       = var.manage_securityhub ? 1 : 0
+  product_arn = "arn:aws:securityhub:${var.region}::product/aws/guardduty"
+
+  depends_on = [aws_securityhub_account.main]
+}
+
+resource "aws_securityhub_product_subscription" "inspector" {
+  count       = var.manage_securityhub ? 1 : 0
+  product_arn = "arn:aws:securityhub:${var.region}::product/aws/inspector"
+
+  depends_on = [aws_securityhub_account.main]
+}
+
+resource "aws_securityhub_product_subscription" "config" {
+  count       = var.manage_securityhub ? 1 : 0
+  product_arn = "arn:aws:securityhub:${var.region}::product/aws/config"
+
+  depends_on = [aws_securityhub_account.main]
+}
+
 resource "aws_sns_topic" "securityhub_findings" {
   count = var.manage_securityhub ? 1 : 0
   name  = "${var.name}-securityhub-findings"
