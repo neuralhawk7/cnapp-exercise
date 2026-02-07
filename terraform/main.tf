@@ -302,9 +302,230 @@ resource "aws_securityhub_standards_subscription" "cis_1_4" {
   standards_arn = "arn:aws:securityhub:${var.region}::standards/cis-aws-foundations-benchmark/v/1.4.0"
 }
 
+resource "aws_sns_topic" "securityhub_findings" {
+  count = var.manage_securityhub ? 1 : 0
+  name  = "${var.name}-securityhub-findings"
+}
+
+resource "aws_cloudwatch_event_rule" "securityhub_findings" {
+  count       = var.manage_securityhub ? 1 : 0
+  name        = "${var.name}-securityhub-findings"
+  description = "Forward Security Hub findings to SNS"
+
+  event_pattern = jsonencode({
+    source      = ["aws.securityhub"],
+    detail-type = ["Security Hub Findings - Imported"]
+  })
+}
+
+resource "aws_cloudwatch_event_target" "securityhub_to_sns" {
+  count = var.manage_securityhub ? 1 : 0
+  rule  = aws_cloudwatch_event_rule.securityhub_findings[0].name
+  arn   = aws_sns_topic.securityhub_findings[0].arn
+}
+
+resource "aws_sns_topic_policy" "securityhub_findings" {
+  count = var.manage_securityhub ? 1 : 0
+  arn   = aws_sns_topic.securityhub_findings[0].arn
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid    = "AllowEventBridgePublish",
+        Effect = "Allow",
+        Principal = {
+          Service = "events.amazonaws.com"
+        },
+        Action   = "sns:Publish",
+        Resource = aws_sns_topic.securityhub_findings[0].arn,
+        Condition = {
+          ArnEquals = {
+            "aws:SourceArn" = aws_cloudwatch_event_rule.securityhub_findings[0].arn
+          }
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_inspector2_enabler" "main" {
   account_ids    = [data.aws_caller_identity.current.account_id]
-  resource_types = ["EC2"]
+  resource_types = ["EC2", "ECR", "EKS"]
+}
+
+############################
+# CloudTrail (multi-region)
+############################
+resource "random_string" "cloudtrail_suffix" {
+  length  = 8
+  special = false
+  upper   = false
+}
+
+resource "aws_s3_bucket" "cloudtrail" {
+  bucket        = "${var.name}-cloudtrail-${random_string.cloudtrail_suffix.result}"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "cloudtrail" {
+  bucket                  = aws_s3_bucket.cloudtrail.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+data "aws_iam_policy_document" "cloudtrail_bucket" {
+  statement {
+    sid = "AWSCloudTrailAclCheck"
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+
+    actions   = ["s3:GetBucketAcl"]
+    resources = [aws_s3_bucket.cloudtrail.arn]
+  }
+
+  statement {
+    sid = "AWSCloudTrailWrite"
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.cloudtrail.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "cloudtrail" {
+  bucket = aws_s3_bucket.cloudtrail.id
+  policy = data.aws_iam_policy_document.cloudtrail_bucket.json
+
+  depends_on = [aws_s3_bucket_public_access_block.cloudtrail]
+}
+
+resource "aws_cloudtrail" "main" {
+  name                          = "${var.name}-trail"
+  s3_bucket_name                = aws_s3_bucket.cloudtrail.bucket
+  include_global_service_events = true
+  is_multi_region_trail         = true
+  enable_log_file_validation    = true
+
+  depends_on = [aws_s3_bucket_policy.cloudtrail]
+}
+
+############################
+# AWS Config
+############################
+resource "random_string" "config_suffix" {
+  length  = 8
+  special = false
+  upper   = false
+}
+
+resource "aws_s3_bucket" "config" {
+  bucket        = "${var.name}-config-${random_string.config_suffix.result}"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "config" {
+  bucket                  = aws_s3_bucket.config.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+data "aws_iam_policy_document" "config_bucket" {
+  statement {
+    sid = "AWSConfigAclCheck"
+
+    principals {
+      type        = "Service"
+      identifiers = ["config.amazonaws.com"]
+    }
+
+    actions   = ["s3:GetBucketAcl"]
+    resources = [aws_s3_bucket.config.arn]
+  }
+
+  statement {
+    sid = "AWSConfigWrite"
+
+    principals {
+      type        = "Service"
+      identifiers = ["config.amazonaws.com"]
+    }
+
+    actions   = ["s3:PutObject"]
+    resources = ["${aws_s3_bucket.config.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "config" {
+  bucket = aws_s3_bucket.config.id
+  policy = data.aws_iam_policy_document.config_bucket.json
+
+  depends_on = [aws_s3_bucket_public_access_block.config]
+}
+
+resource "aws_iam_role" "config" {
+  name = "${var.name}-config-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "config.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "config" {
+  role       = aws_iam_role.config.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSConfigRole"
+}
+
+resource "aws_config_configuration_recorder" "main" {
+  name     = "${var.name}-config"
+  role_arn = aws_iam_role.config.arn
+
+  recording_group {
+    all_supported                 = true
+    include_global_resource_types = true
+  }
+}
+
+resource "aws_config_delivery_channel" "main" {
+  name           = "${var.name}-config"
+  s3_bucket_name = aws_s3_bucket.config.bucket
+
+  depends_on = [aws_s3_bucket_policy.config]
+}
+
+resource "aws_config_configuration_recorder_status" "main" {
+  name       = aws_config_configuration_recorder.main.name
+  is_enabled = true
+
+  depends_on = [aws_config_delivery_channel.main]
 }
 
 ############################
