@@ -1,6 +1,6 @@
 # Architecture Diagrams
 
-This document contains architecture diagrams for the Wiz Technical Exercise.
+This document contains architecture diagrams for an intentionally vulnerable Web App on EKS with a Debian 10 (Buster) MongoDB 4.2 backend. 
 
 ## System Overview
 
@@ -11,4 +11,4 @@ The system consists of:
 - **Security**: GuardDuty, Security Hub, Inspector, WAF, CloudTrail
 - **CI/CD**: GitHub Actions with Terraform and container workflows
 
-See EXERCISE_GUIDE.md for detailed Mermaid diagrams.
+See EXERCISE_GUIDE.md for detailed diagrams.
