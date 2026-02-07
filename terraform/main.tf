@@ -379,13 +379,13 @@ resource "aws_iam_role_policy" "waf_firehose" {
 
 resource "aws_cloudwatch_log_group" "waf_firehose" {
   count             = var.waf_logging_enabled ? 1 : 0
-  name              = "/aws/kinesisfirehose/${var.name}-waf-logs"
+  name              = "/aws/kinesisfirehose/aws-waf-logs-${var.name}"
   retention_in_days = 30
 }
 
 resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
   count       = var.waf_logging_enabled ? 1 : 0
-  name        = "${var.name}-waf-logs"
+  name        = "aws-waf-logs-${var.name}"
   destination = "extended_s3"
 
   extended_s3_configuration {
