@@ -139,6 +139,12 @@ variable "cloudtrail_org_id" {
   }
 }
 
+variable "waf_logging_enabled" {
+  description = "Whether WAFv2 logging should be enabled"
+  type        = bool
+  default     = true
+}
+
 variable "eks_cluster_name" {
   description = "EKS cluster name"
   type        = string

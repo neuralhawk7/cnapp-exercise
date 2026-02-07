@@ -306,6 +306,112 @@ resource "aws_wafv2_web_acl_association" "alb" {
   web_acl_arn  = aws_wafv2_web_acl.main.arn
 }
 
+resource "random_string" "waf_logs_suffix" {
+  count   = var.waf_logging_enabled ? 1 : 0
+  length  = 8
+  special = false
+  upper   = false
+}
+
+resource "aws_s3_bucket" "waf_logs" {
+  count         = var.waf_logging_enabled ? 1 : 0
+  bucket        = "${var.name}-waf-logs-${random_string.waf_logs_suffix[0].result}"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_public_access_block" "waf_logs" {
+  count                  = var.waf_logging_enabled ? 1 : 0
+  bucket                 = aws_s3_bucket.waf_logs[0].id
+  block_public_acls      = true
+  block_public_policy    = true
+  ignore_public_acls     = true
+  restrict_public_buckets = true
+}
+
+resource "aws_iam_role" "waf_firehose" {
+  count = var.waf_logging_enabled ? 1 : 0
+  name  = "${var.name}-waf-firehose-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "firehose.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "waf_firehose" {
+  count = var.waf_logging_enabled ? 1 : 0
+  name  = "${var.name}-waf-firehose-policy"
+  role  = aws_iam_role.waf_firehose[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "s3:AbortMultipartUpload",
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:ListBucketMultipartUploads",
+          "s3:PutObject"
+        ],
+        Resource = [
+          aws_s3_bucket.waf_logs[0].arn,
+          "${aws_s3_bucket.waf_logs[0].arn}/*"
+        ]
+      },
+      {
+        Effect = "Allow",
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        Resource = "${aws_cloudwatch_log_group.waf_firehose[0].arn}:*"
+      }
+    ]
+  })
+}
+
+resource "aws_cloudwatch_log_group" "waf_firehose" {
+  count             = var.waf_logging_enabled ? 1 : 0
+  name              = "/aws/kinesisfirehose/${var.name}-waf-logs"
+  retention_in_days = 30
+}
+
+resource "aws_kinesis_firehose_delivery_stream" "waf_logs" {
+  count       = var.waf_logging_enabled ? 1 : 0
+  name        = "${var.name}-waf-logs"
+  destination = "extended_s3"
+
+  extended_s3_configuration {
+    role_arn   = aws_iam_role.waf_firehose[0].arn
+    bucket_arn = aws_s3_bucket.waf_logs[0].arn
+
+    buffering_size     = 5
+    buffering_interval = 300
+    compression_format = "GZIP"
+
+    cloudwatch_logging_options {
+      enabled         = true
+      log_group_name  = aws_cloudwatch_log_group.waf_firehose[0].name
+      log_stream_name = "s3-delivery"
+    }
+  }
+
+  depends_on = [aws_s3_bucket_public_access_block.waf_logs]
+}
+
+resource "aws_wafv2_web_acl_logging_configuration" "main" {
+  count                  = var.waf_logging_enabled ? 1 : 0
+  resource_arn           = aws_wafv2_web_acl.main.arn
+  log_destination_configs = [aws_kinesis_firehose_delivery_stream.waf_logs[0].arn]
+}
+
 resource "aws_guardduty_detector" "main" {
   count  = var.manage_guardduty ? 1 : 0
   enable = true
