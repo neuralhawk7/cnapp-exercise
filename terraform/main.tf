@@ -574,13 +574,13 @@ resource "aws_iam_role_policy" "config" {
         Resource = "*"
       },
       {
-        Effect = "Allow",
-        Action = ["s3:GetBucketAcl", "s3:ListBucket"],
+        Effect   = "Allow",
+        Action   = ["s3:GetBucketAcl", "s3:ListBucket"],
         Resource = [aws_s3_bucket.config[0].arn]
       },
       {
-        Effect = "Allow",
-        Action = ["s3:PutObject"],
+        Effect   = "Allow",
+        Action   = ["s3:PutObject"],
         Resource = ["${aws_s3_bucket.config[0].arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/Config/*"],
         Condition = {
           StringEquals = {
@@ -589,8 +589,8 @@ resource "aws_iam_role_policy" "config" {
         }
       },
       {
-        Effect = "Allow",
-        Action = ["cloudwatch:PutMetricData"],
+        Effect   = "Allow",
+        Action   = ["cloudwatch:PutMetricData"],
         Resource = "*"
       }
     ]
