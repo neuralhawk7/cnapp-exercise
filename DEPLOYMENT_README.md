@@ -22,14 +22,6 @@ This document describes the deployment flow, architecture, and the detective and
 - Build and push container to ECR.
 - Deploy Kubernetes manifests under app/.
 
-4) Install observability add-ons (Cilium + Hubble UI, Pixie):
-- bash scripts/install-cilium-hubble.sh
-- bash scripts/install-pixie-selfhosted.sh
-
-Hubble UI access:
-- kubectl -n kube-system port-forward svc/hubble-ui 12000:80
-- Open http://localhost:12000
-
 ## Detective Controls Implemented
 - GuardDuty enabled via Terraform.
 - Detective enabled via Terraform.
