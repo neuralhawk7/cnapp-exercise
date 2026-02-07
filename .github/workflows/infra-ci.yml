@@ -28,7 +28,20 @@ jobs:
       - name: Terraform init
         run: terraform -chdir=terraform init -backend=false
       - name: Terraform validate
-        run: terraform -chdir=terraform validate -var-file=ci.tfvars
+        env:
+          TF_VAR_vpc_id: "vpc-0123456789abcdef0"
+          TF_VAR_public_subnet_az: "us-east-1a"
+          TF_VAR_key_name: "ci-key"
+          TF_VAR_mongo_admin_pass: "ci-pass-123"
+          TF_VAR_app_name: "ci-app"
+          TF_VAR_environment: "lab"
+          TF_VAR_business_unit: "ci-bu"
+          TF_VAR_cost_center: "ci-cc"
+          TF_VAR_owner_business: "ci-owner-biz"
+          TF_VAR_owner_technical: "ci-owner-tech"
+          TF_VAR_data_classification: "internal"
+          TF_VAR_eks_admin_role_arn: "arn:aws:iam::123456789012:role/ci-eks-admin"
+        run: terraform -chdir=terraform validate
 
   checkov:
     runs-on: ubuntu-latest
