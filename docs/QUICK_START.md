@@ -1,6 +1,6 @@
-# Quick Start - Wiz Exercise Demo
+# Quick Start
 
-This guide gets you from zero to demo-ready in the fastest possible time.
+This guide prepares you to deliver an intentionnaly vulnerable Web App.
 
 ## Prerequisites
 
@@ -62,7 +62,7 @@ curl http://<load-balancer-url>/healthz
 curl http://<load-balancer-url>/items
 ```
 
-## Pre-Demo Checklist (5 minutes)
+## Pre-Flight Checklist (5 minutes)
 
 ### 1. Verify Infrastructure
 ```bash
@@ -109,7 +109,7 @@ kubectl get nodes
 kd get pods
 ```
 
-## Demo Script (15 minutes)
+## Demo (15 minutes)
 
 ### Part 1: Application (3 minutes)
 ```bash
@@ -250,8 +250,6 @@ cat /usr/local/bin/backup-mongodb.sh
 sudo crontab -l
 ```
 
-## Talking Points
-
 ### Architecture
 - "Two-tier architecture with containerized frontend and database backend"
 - "Deployed on AWS using managed services: EKS, EC2, VPC"
@@ -261,7 +259,7 @@ sudo crontab -l
 ### Security Controls
 - "Comprehensive detective controls: GuardDuty, Security Hub, Inspector, CloudTrail, Config"
 - "Preventive controls: WAF with OWASP Top 10, security groups, IAM roles"
-- "CI/CD security: Checkov for IaC, Trivy for containers, SARIF integration"
+- "CI/CD security: Checkov for IaC, Trivy for containers, SARIF integration sends results to Security Tab of Repo"
 
 ### Misconfigurations
 - "Intentionally misconfigured to demonstrate CNAPP value"
