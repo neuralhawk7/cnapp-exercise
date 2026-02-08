@@ -184,6 +184,7 @@ variable "eks_node_desired_size" {
 variable "eks_admin_role_arns" {
   description = "IAM role ARNs granted cluster-admin access via EKS access entries"
   type        = list(string)
+  default     = ["arn:aws:iam::851725248206:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_1866de986b9e5b14"]
 }
 
 variable "app_name" {
