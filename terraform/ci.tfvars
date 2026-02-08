@@ -10,4 +10,4 @@ cost_center         = "ci-cc"
 owner_business      = "ci-owner-biz"
 owner_technical     = "ci-owner-tech"
 data_classification = "internal"
-eks_admin_role_arn  = "arn:aws:iam::123456789012:role/ci-eks-admin"
+eks_admin_role_arns = ["arn:aws:iam::123456789012:role/ci-eks-admin"]

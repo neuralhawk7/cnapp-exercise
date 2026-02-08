@@ -14,8 +14,9 @@ module "eks" {
   enable_irsa = true
 
   access_entries = {
-    admin = {
-      principal_arn = var.eks_admin_role_arn
+    for idx, arn in var.eks_admin_role_arns :
+    "admin_${idx}" => {
+      principal_arn = arn
       type          = "STANDARD"
 
       policy_associations = {

@@ -181,9 +181,9 @@ variable "eks_node_desired_size" {
   default     = 1
 }
 
-variable "eks_admin_role_arn" {
-  description = "IAM role ARN granted cluster-admin access via aws-auth"
-  type        = string
+variable "eks_admin_role_arns" {
+  description = "IAM role ARNs granted cluster-admin access via EKS access entries"
+  type        = list(string)
 }
 
 variable "app_name" {
