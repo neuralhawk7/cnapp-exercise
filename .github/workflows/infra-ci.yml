@@ -52,6 +52,7 @@ jobs:
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: terraform
+          framework: terraform,secrets
           output_format: sarif
           output_file_path: results.sarif
           soft_fail: true
@@ -59,6 +60,18 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
+      - name: Checkov Kubernetes + secrets scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: app
+          framework: kubernetes,secrets
+          output_format: sarif
+          output_file_path: results-k8s.sarif
+          soft_fail: true
+      - name: Upload Checkov K8s SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results-k8s.sarif
 
   yor-trace:
     runs-on: ubuntu-latest

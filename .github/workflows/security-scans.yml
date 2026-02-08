@@ -52,9 +52,43 @@ jobs:
           image-ref: ${{ steps.image.outputs.image_uri }}
           format: sarif
           output: trivy-ecr.sarif
-          trivy-args: --skip-version-check
+          trivy-args: --skip-version-check --scanners vuln
       - name: Upload ECR SARIF
         if: ${{ env.AWS_ROLE_ARN != '' && hashFiles('trivy-ecr.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-ecr.sarif
+
+  trivy-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Trivy filesystem (SCA + secrets + misconfig)
+        uses: aquasecurity/trivy-action@0.33.1
+        continue-on-error: true
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          trivy-args: --skip-version-check --scanners vuln,secret,misconfig
+      - name: Upload filesystem SARIF
+        if: ${{ hashFiles('trivy-fs.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-fs.sarif
+      - name: Trivy config (Kubernetes + IaC)
+        uses: aquasecurity/trivy-action@0.33.1
+        continue-on-error: true
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+          trivy-args: --skip-version-check
+      - name: Upload config SARIF
+        if: ${{ hashFiles('trivy-config.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-config.sarif
