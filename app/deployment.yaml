@@ -22,7 +22,7 @@ spec:
           imagePullPolicy: Always
           env:
             - name: MONGO_URI
-              value: "mongodb://admin:MongoPass%402026Secure@10.0.1.115:27017/admin"
+              value: "mongodb://admin:MongoPass%402026Secure@10.0.1.59:27017/admin"
             - name: MONGO_DB
               value: "wizdb"
           ports:
